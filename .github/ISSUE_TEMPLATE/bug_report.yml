@@ -1,0 +1,102 @@
+name: Bug report
+description: Report a bug with S3 Explorer
+title: "bug: "
+labels: ["bug"]
+assignees: []
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a bug. Please review the project guides before filing:
+        - README: https://github.com/${{ github.repository }}/blob/main/README.md
+        - Support: https://github.com/${{ github.repository }}/blob/main/SUPPORT.md
+
+  - type: checkboxes
+    id: preflight
+    attributes:
+      label: Before submitting
+      description: Please confirm the following
+      options:
+        - label: I searched existing issues and discussions
+          required: true
+        - label: I will not include secrets or credentials anywhere in this report
+          required: true
+        - label: I verified the bucket region and CORS settings as described in README
+          required: false
+
+  - type: input
+    id: summary
+    attributes:
+      label: Summary
+      description: Clear, concise description of the problem
+      placeholder: e.g. Upload fails with 403 when bucket is in eu-west-1
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Provide exact steps; include example object keys or prefixes if relevant
+      placeholder: |
+        1. Serve locally with python3 -m http.server
+        2. Connect using Access Key and Region eu-west-1 to bucket example
+        3. Click Upload and select a 10 MB file
+        4. Observe error
+      render: bash
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      placeholder: The upload completes successfully and appears in the target prefix
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      placeholder: The UI shows an error toast and the browser console logs a 403
+    validations:
+      required: true
+
+  - type: dropdown
+    id: region
+    attributes:
+      label: AWS Region
+      options:
+        - us-east-1
+        - us-west-2
+        - eu-west-1
+        - eu-central-1
+        - ap-southeast-1
+        - other
+
+  - type: input
+    id: bucket
+    attributes:
+      label: Bucket name
+      description: Provide if relevant. Redact sensitive details if necessary.
+
+  - type: input
+    id: browser
+    attributes:
+      label: Browser and OS
+      placeholder: e.g. Chrome 120 on macOS 14.2
+
+  - type: textarea
+    id: console
+    attributes:
+      label: Console logs or errors
+      description: Redact any sensitive information
+      render: shell
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      description: Screenshots, screen recordings, links to related issues or PRs

@@ -1,0 +1,54 @@
+name: Feature request
+description: Propose a new feature or enhancement for S3 Explorer
+title: "feat: "
+labels: ["feature"]
+assignees: []
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for suggesting a feature. Please review:
+        - README: https://github.com/senad-dizdarevic-valcon/s3-explorer/blob/main/README.md
+        - Support: https://github.com/senad-dizdarevic-valcon/s3-explorer/blob/main/SUPPORT.md
+
+  - type: checkboxes
+    id: preflight
+    attributes:
+      label: Before submitting
+      description: Please confirm the following
+      options:
+        - label: I searched existing issues and PRs to avoid duplicates
+          required: true
+        - label: This request does not include secrets or credentials
+          required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem to solve
+      description: What problem or use case does this feature address?
+      placeholder: e.g. It is hard to distinguish large multipart uploads in progress
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: Describe the feature you would like to see and how it should work
+      placeholder: e.g. Show a progress bar for multipart uploads with cancel support
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: List alternative solutions or workarounds you have considered
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional context
+      description: Add screenshots, sketches, or links that help explain your proposal

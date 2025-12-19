@@ -1,0 +1,44 @@
+name: Question
+description: Ask a question about using S3 Explorer
+title: "question: "
+labels: ["question"]
+assignees: []
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for your question. Please review these docs first:
+        - README: https://github.com/senad-dizdarevic-valcon/s3-explorer/blob/main/README.md
+        - Support: https://github.com/senad-dizdarevic-valcon/s3-explorer/blob/main/SUPPORT.md
+        - Security: https://github.com/senad-dizdarevic-valcon/s3-explorer/blob/main/SECURITY.md
+
+  - type: checkboxes
+    id: preflight
+    attributes:
+      label: Before submitting
+      options:
+        - label: I searched existing issues
+          required: true
+        - label: I will not include secrets or credentials anywhere in this report
+          required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Context
+      description: Provide background and what you are trying to achieve
+      placeholder: e.g. I am trying to upload a file to a bucket in eu-west-1...
+
+  - type: textarea
+    id: tried
+    attributes:
+      label: What have you tried?
+      description: List steps or approaches you attempted and their outcomes
+      placeholder: I served locally with python3 -m http.server and connected to bucket...
+
+  - type: textarea
+    id: details
+    attributes:
+      label: Details
+      description: Add screenshots, console logs, and any other helpful information. Redact sensitive information.

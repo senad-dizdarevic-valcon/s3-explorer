@@ -1,0 +1,46 @@
+name: Documentation improvement
+description: Suggest improvements or corrections to the documentation
+title: "docs: "
+labels: ["documentation"]
+assignees: []
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping improve the docs. Please review:
+        - README: https://github.com/senad-dizdarevic-valcon/s3-explorer/blob/main/README.md
+        - Contributing: https://github.com/senad-dizdarevic-valcon/s3-explorer/blob/main/CONTRIBUTING.md
+        - Support: https://github.com/senad-dizdarevic-valcon/s3-explorer/blob/main/SUPPORT.md
+
+  - type: checkboxes
+    id: preflight
+    attributes:
+      label: Before submitting
+      options:
+        - label: I searched existing issues and PRs to avoid duplicates
+          required: true
+
+  - type: textarea
+    id: affected
+    attributes:
+      label: Affected pages or sections
+      description: List the files or sections that need changes
+      placeholder: e.g. README Run locally, SECURITY scope section
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed changes
+      description: Describe the change you are proposing; include exact wording if possible
+      placeholder: e.g. Clarify python3 -m http.server instructions for Windows users
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      description: Add any context, screenshots, or references that help explain your suggestion

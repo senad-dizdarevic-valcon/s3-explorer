@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Questions and Support
+    url: https://github.com/senad-dizdarevic-valcon/s3-explorer/blob/main/SUPPORT.md
+    about: Please read SUPPORT for how to get help before opening an issue

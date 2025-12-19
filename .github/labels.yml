@@ -1,0 +1,47 @@
+# Label definitions for repository
+# Applied by .github/workflows/labels-sync.yml
+
+- name: bug
+  color: d73a4a
+  description: Something is not working
+
+- name: feature
+  color: 0e8a16
+  description: New feature or request
+
+- name: documentation
+  color: 0075ca
+  description: Improvements or additions to documentation
+
+- name: internal
+  color: cccccc
+  description: Internal maintenance, chores, or refactors
+
+- name: question
+  color: d876e3
+  description: Further information is requested
+
+- name: good first issue
+  color: 7057ff
+  description: Good for newcomers
+
+- name: help wanted
+  color: 008672
+  description: Extra attention is needed
+
+# SemVer and release-drafter helpers
+- name: major
+  color: b60205
+  description: SemVer major change
+
+- name: minor
+  color: fbca04
+  description: SemVer minor change
+
+- name: patch
+  color: 0e8a16
+  description: SemVer patch change
+
+- name: skip-changelog
+  color: e4e669
+  description: Exclude this from changelog

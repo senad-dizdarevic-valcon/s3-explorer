@@ -1,0 +1,48 @@
+name-template: v$RESOLVED_VERSION
+tag-template: v$RESOLVED_VERSION
+categories:
+  - title: 🚀 Features
+    labels:
+      - feature
+  - title: 🐛 Bug Fixes
+    labels:
+      - bug
+  - title: 📝 Documentation
+    labels:
+      - documentation
+  - title: 🧰 Internal
+    labels:
+      - internal
+change-template: "- $TITLE @$AUTHOR [#$NUMBER]"
+no-changes-template: "No changes."
+template: |
+  ## Changes
+
+  $CHANGES
+
+  ## Contributors
+
+  $CONTRIBUTORS
+
+version-resolver:
+  major:
+    labels:
+      - major
+  minor:
+    labels:
+      - minor
+      - feature
+  patch:
+    labels:
+      - patch
+      - bug
+      - documentation
+      - internal
+  default: patch
+
+exclude-labels:
+  - skip-changelog
+
+replacers:
+  - search: "\\(#([0-9]+)\\)"
+    replace: "[#$1](https://github.com/senad-dizdarevic-valcon/s3-explorer/pull/$1)"
