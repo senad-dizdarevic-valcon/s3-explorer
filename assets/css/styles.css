@@ -4,8 +4,8 @@
   --border: #e5e7eb; /* gray-200 */
   --text: #0f172a; /* slate-900 */
   --text-muted: #334155; /* slate-700 */
-  --focus: #2563EB; /* per Config.uiFocusOutlineColor */
-  --primary: #2563EB;
+  --focus: #2563eb; /* per Config.uiFocusOutlineColor */
+  --primary: #2563eb;
   --primary-contrast: #ffffff;
   --secondary-bg: #e5e7eb;
   --secondary-text: #0f172a;
@@ -19,36 +19,12 @@
   --success-text: #065f46; /* emerald-800 */
   --toast-bg: #111827cc; /* neutral with opacity */
   --toast-text: #f9fafb;
-  --shadow: 0 1px 2px rgba(0,0,0,0.06), 0 2px 4px rgba(0,0,0,0.06);
-}
-
-html, body {
-  background: var(--bg);
-  color: var(--text);
-  font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
-  line-height: 1.5;
-  margin: 0;
-  padding: 0;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.06), 0 2px 4px rgba(0, 0, 0, 0.06);
 }
 
 *:focus-visible {
   outline: 3px solid var(--focus);
   outline-offset: 2px;
-}
-
-.container {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 24px;
-}
-
-.banner {
-  background: var(--warning-bg);
-  color: var(--warning-text);
-  border: 1px solid #fde68a; /* amber-200 */
-  padding: 12px 16px;
-  border-radius: 8px;
-  margin: 16px 0;
 }
 
 .card {
@@ -66,7 +42,9 @@ html, body {
   gap: 12px 16px;
 }
 /* Ensure children can shrink inside grid to avoid overflow/overlap */
-.form-grid > div { min-width: 0; }
+.form-grid > div {
+  min-width: 0;
+}
 @media (max-width: 800px) {
   .form-grid {
     grid-template-columns: 1fr;
@@ -105,7 +83,7 @@ select {
 .form-input {
   width: 100%;
   box-sizing: border-box; /* include padding in width to prevent overlap */
-  padding: 12px 16px;     /* increased horizontal padding */
+  padding: 12px 16px; /* increased horizontal padding */
   border-radius: 10px;
 }
 
@@ -115,19 +93,6 @@ select {
   margin-top: 12px;
 }
 
-.btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  padding: 10px 14px;
-  border-radius: 8px;
-  border: 1px solid transparent;
-  cursor: pointer;
-  user-select: none;
-  text-decoration: none;
-  font-weight: 600;
-}
 .btn[disabled] {
   opacity: 0.6;
   cursor: not-allowed;
@@ -196,7 +161,10 @@ select {
   text-decoration: none;
   padding: 2px 4px;
   border-radius: 6px;
-  transition: color 0.5s ease, text-decoration-color 0.5s ease, background 0.4s ease;
+  transition:
+    color 0.5s ease,
+    text-decoration-color 0.5s ease,
+    background 0.4s ease;
 }
 .breadcrumbs a:hover {
   color: var(--text);
@@ -257,11 +225,6 @@ select {
   flex-wrap: wrap;
 }
 
-.search-input {
-  flex: 0 1 350px; /* allow shrinking without wrapping siblings */
-  width: 350px;
-  min-width: 300px;
-}
 @media (max-width: 700px) {
   .search-input {
     flex: 0 1 200px;
@@ -278,7 +241,8 @@ select {
   border-radius: 12px;
   overflow: hidden;
 }
-.list-header, .list-row {
+.list-header,
+.list-row {
   display: grid;
   grid-template-columns: 40px minmax(200px, 1fr) 120px 140px 160px;
   align-items: center;
@@ -289,20 +253,11 @@ select {
   padding: 10px 12px;
   font-weight: 700;
 }
-.list-row {
-  padding: 10px 12px;
-  border-top: 1px solid var(--border);
-}
 .list-row:hover {
   background: #f1f5f9; /* slate-100 tint */
 }
 .list-row.selected {
   background: #e0f2fe; /* sky-100 */
-}
-.name-cell {
-  display: flex;
-  align-items: center;
-  gap: 8px;
 }
 .type-badge {
   display: inline-block;
@@ -399,7 +354,7 @@ select {
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0,0,0,0.35);
+  background: rgba(0, 0, 0, 0.35);
   display: none;
   align-items: center;
   justify-content: center;
@@ -466,7 +421,9 @@ select {
 }
 
 /* Accessibility helpers */
-[hidden] { display: none !important; }
+[hidden] {
+  display: none !important;
+}
 
 /* Bottom-right info "?" floating action button */
 .info-fab {
@@ -501,7 +458,8 @@ select {
   padding: 12px;
   white-space: pre-wrap;
   word-wrap: break-word;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
+    "Courier New", monospace;
   max-height: 50vh;
   overflow: auto;
   box-sizing: border-box;
@@ -520,6 +478,12 @@ select {
 
 /* From second inline style: fixed bottom banner fade */
 .banner {
+  background: var(--warning-bg);
+  color: var(--warning-text);
+  border: 1px solid #fde68a; /* amber-200 */
+  padding: 12px 16px;
+  border-radius: 8px;
+  margin: 16px 0;
   position: fixed;
   bottom: 0;
   left: 0;
@@ -537,41 +501,116 @@ select {
    accessible theme toggle, dark theme variables, and overflow safety */
 
 /* 1) Universal box-sizing to prevent overflow */
-*, *::before, *::after { box-sizing: border-box; }
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
 
 /* 2) Fluid typography and container padding */
-html { -webkit-text-size-adjust: 100%; }
-body { font-size: clamp(14px, 1.1vw + 0.5rem, 18px); }
-.container { padding: clamp(12px, 2vw + 8px, 24px); }
+html {
+  -webkit-text-size-adjust: 100%;
+}
+body {
+  font-size: clamp(14px, 1.1vw + 0.5rem, 18px);
+}
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: clamp(12px, 2vw + 8px, 24px);
+}
 
 /* 3) Prevent horizontal scroll */
-html, body { max-width: 100%; overflow-x: hidden; }
+html,
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family:
+    system-ui,
+    -apple-system,
+    Segoe UI,
+    Roboto,
+    Helvetica,
+    Arial,
+    "Apple Color Emoji",
+    "Segoe UI Emoji";
+  line-height: 1.5;
+  margin: 0;
+  padding: 0;
+  max-width: 100%;
+  overflow-x: hidden;
+}
 
 /* 4) Responsive media */
-img, video, object, embed, iframe { max-width: 100%; height: auto; }
+img,
+video,
+object,
+embed,
+iframe {
+  max-width: 100%;
+  height: auto;
+}
 
 /* 5) Touch target sizes (buttons >= 44x44) */
-.btn { min-height: 44px; min-width: 44px; }
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  user-select: none;
+  text-decoration: none;
+  font-weight: 600;
+  min-height: 44px;
+  min-width: 44px;
+}
 
 /* Increase checkbox size for touch */
-input[type="checkbox"] { width: 24px; height: 24px; }
+input[type="checkbox"] {
+  width: 24px;
+  height: 24px;
+}
 
 /* 6) Long text wrapping in object names */
-.name-cell { min-width: 0; }
-.name-cell a { overflow-wrap: anywhere; word-break: break-word; min-width: 0; }
+.name-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.name-cell a {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  min-width: 0;
+}
 
 /* 7) Search input responsiveness (allow shrinking on very narrow screens) */
-.search-input { flex: 1 1 280px; width: auto; min-width: 0; }
+.search-input {
+  flex: 1 1 280px;
+  width: auto;
+  min-width: 0;
+}
 @media (max-width: 700px) {
-  .search-input { flex: 1 1 160px; width: 100%; min-width: 0; }
+  .search-input {
+    flex: 1 1 160px;
+    width: 100%;
+    min-width: 0;
+  }
 }
 
 /* 8) List reflow under 600px (stack Type/Size/Modified under Name) */
 @media (max-width: 600px) {
-  .list-header { grid-template-columns: 40px 1fr; }
+  .list-header {
+    grid-template-columns: 40px 1fr;
+  }
   .list-header > div:nth-child(3),
   .list-header > div:nth-child(4),
-  .list-header > div:nth-child(5) { display: none; }
+  .list-header > div:nth-child(5) {
+    display: none;
+  }
 
   .list-row {
     grid-template-columns: 40px 1fr;
@@ -587,28 +626,54 @@ input[type="checkbox"] { width: 24px; height: 24px; }
     font-size: 0.9rem;
     color: var(--text-muted);
   }
-  .list-row > div:nth-child(3)::before { content: "Type: "; font-weight: 600; color: var(--text); }
-  .list-row > div:nth-child(4)::before { content: "Size: "; font-weight: 600; color: var(--text); }
-  .list-row > div:nth-child(5)::before { content: "Modified: "; font-weight: 600; color: var(--text); }
+  .list-row > div:nth-child(3)::before {
+    content: "Type: ";
+    font-weight: 600;
+    color: var(--text);
+  }
+  .list-row > div:nth-child(4)::before {
+    content: "Size: ";
+    font-weight: 600;
+    color: var(--text);
+  }
+  .list-row > div:nth-child(5)::before {
+    content: "Modified: ";
+    font-weight: 600;
+    color: var(--text);
+  }
 }
 
 /* 9) Ensure rows have adequate height */
-.list-row { min-height: 44px; }
+.list-row {
+  padding: 10px 12px;
+  border-top: 1px solid var(--border);
+  min-height: 44px;
+}
 
 /* 10) Minimal global header for theme toggle (connect screen) */
 .top-header {
-  position: sticky; top: 0; z-index: 60;
-  display: flex; justify-content: flex-end; align-items: center;
-  gap: 8px; padding: 8px 16px;
+  position: sticky;
+  top: 0;
+  z-index: 60;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
   border-bottom: 1px solid var(--border);
   background: var(--bg);
 }
 .theme-toggle {
-  width: 44px; height: 44px; padding: 0; border-radius: 999px;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border-radius: 999px;
   color: var(--text);
   border-color: var(--border);
 }
-.theme-toggle:hover { background: var(--bg-muted); }
+.theme-toggle:hover {
+  background: var(--bg-muted);
+}
 
 .project-title {
   font-weight: 800;
@@ -618,6 +683,25 @@ input[type="checkbox"] { width: 24px; height: 24px; }
   line-height: 1.2;
 }
 /* 11) Dark theme tokens (WCAG AA contrast mindful) */
+/* Adjust list row hover and selected in dark */
+:root[data-theme="dark"] .list-row:hover {
+  background: #0f172a;
+}
+:root[data-theme="dark"] .list-row.selected {
+  background: #0b2e4a;
+}
+
+/* 12) Honor system preference when no stored choice exists */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]):not([data-theme="dark"]) {
+    color-scheme: dark;
+  }
+}
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="light"]):not([data-theme="dark"]) {
+    color-scheme: light;
+  }
+}
 :root[data-theme="dark"] {
   --bg: #0b1220;
   --bg-muted: #111827;
@@ -638,17 +722,8 @@ input[type="checkbox"] { width: 24px; height: 24px; }
   --success-text: #a7f3d0;
   --toast-bg: #111827ee;
   --toast-text: #f3f4f6;
+  color-scheme: dark;
 }
-/* Adjust list row hover and selected in dark */
-:root[data-theme="dark"] .list-row:hover { background: #0f172a; }
-:root[data-theme="dark"] .list-row.selected { background: #0b2e4a; }
-
-/* 12) Honor system preference when no stored choice exists */
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]):not([data-theme="dark"]) { color-scheme: dark; }
+:root[data-theme="light"] {
+  color-scheme: light;
 }
-@media (prefers-color-scheme: light) {
-  :root:not([data-theme="light"]):not([data-theme="dark"]) { color-scheme: light; }
-}
-:root[data-theme="dark"] { color-scheme: dark; }
-:root[data-theme="light"] { color-scheme: light; }

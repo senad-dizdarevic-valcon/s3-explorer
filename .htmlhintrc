@@ -1,0 +1,10 @@
+{
+  "tag-pair": true,
+  "attr-no-duplication": true,
+  "doctype-html5": true,
+  "doctype-first": false,
+  "id-unique": true,
+  "src-not-empty": true,
+  "head-script-disabled": false,
+  "title-require": true
+}

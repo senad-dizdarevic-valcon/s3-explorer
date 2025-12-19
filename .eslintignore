@@ -1,0 +1,3 @@
+# Ignore build or third-party assets (none currently), keep minimal
+.github/
+assets/js/aws-*.js

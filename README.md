@@ -25,6 +25,7 @@ This repository has been refactored from a single-file implementation into a sma
 - Banner fade script: [assets/js/banner-fade.js](assets/js/banner-fade.js)
 
 CDN dependencies loaded in head of index:
+
 - AWS SDK v2 pinned to version 2.1488.0
 - JSZip pinned to version 3.10.1
 
@@ -55,6 +56,7 @@ No build step is required.
    - Your credentials are only used in memory for this session and are cleared on Sign Out.
 
 Once connected, you can:
+
 - Browse prefixes with the breadcrumb navigation
 - Filter the current page
 - Upload files including multipart for large files
@@ -83,6 +85,7 @@ Once connected, you can:
 ## Required permissions and CORS
 
 Your IAM user must have permissions for:
+
 - s3:ListBucket
 - s3:GetObject
 - s3:PutObject
@@ -108,3 +111,34 @@ Minimal example policy and CORS configuration are shown in the Requirements moda
 - The favicon injector was moved to [assets/js/favicon.js](assets/js/favicon.js) and still loads in head.
 - The banner fade snippet was moved to [assets/js/banner-fade.js](assets/js/banner-fade.js) and loads at the end of body.
 - The early theme initialization script remains inline in head to avoid flashes of incorrect theme.
+
+## Testing
+
+Local test runner [run_tests.sh](run_tests.sh) mirrors the CI checks defined in [.github/workflows/ci.yml](.github/workflows/ci.yml).
+
+What it runs (in order, fail-fast):
+
+1. ESLint v8 (pinned 8.57.0) on ./assets/js, honoring [.eslintrc.json](.eslintrc.json) and [.eslintignore](.eslintignore), with warnings disallowed by default.
+   - Command:
+     - npx eslint@8.57.0 ./assets/js --max-warnings=0
+2. Stylelint on CSS per [.stylelintrc.json](.stylelintrc.json).
+   - Command:
+     - npx stylelint "assets/css/\*_/_.css"
+3. HTMLHint on [index.html](index.html) per [.htmlhintrc](.htmlhintrc).
+   - Command:
+     - npx htmlhint index.html
+
+Prerequisites:
+
+- Node.js and npx available in your PATH.
+
+Usage:
+
+- Run all checks:
+  ```
+  ./run_tests.sh
+  ```
+- Allow ESLint warnings (still fails on errors):
+  ```
+  ALLOW_WARNINGS=1 ./run_tests.sh
+  ```

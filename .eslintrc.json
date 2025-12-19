@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json.schemastore.org/eslintrc",
+  "env": {
+    "browser": true,
+    "es2020": true
+  },
+  "globals": {
+    "AWS": "readonly",
+    "JSZip": "readonly"
+  },
+  "parserOptions": {
+    "ecmaVersion": 2020,
+    "sourceType": "script"
+  },
+  "extends": [],
+  "rules": {
+    "no-eval": "error",
+    "no-implied-eval": "error",
+    "no-new-func": "error",
+    "no-script-url": "error",
+    "no-alert": "warn",
+    "eqeqeq": ["error", "smart"],
+    "no-unsafe-negation": "error",
+    "no-redeclare": "error",
+    "no-useless-escape": "warn",
+    "no-unused-vars": ["warn", { "args": "none", "ignoreRestSiblings": true }],
+    "consistent-return": "warn",
+    "no-console": "off"
+  }
+}

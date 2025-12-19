@@ -67,7 +67,14 @@ const UIState = {
     moveProgress: false,
     downloadProgress: false
   },
-  preview: { key: "", type: "unknown", truncated: false, content: null, blobUrl: null, contentType: "" },
+  preview: {
+    key: "",
+    type: "unknown",
+    truncated: false,
+    content: null,
+    blobUrl: null,
+    contentType: ""
+  },
   toasts: [],
   lastFocusedElementId: null
 };
@@ -82,10 +89,10 @@ const MoveState = {
 // State for multi-download/zip process
 const DownloadState = {
   inProgress: false,
-  zip: null,           // JSZip instance
+  zip: null, // JSZip instance
   keysTotal: 0,
   keysFetched: 0,
-  failures: []         // { key, code, msg }[]
+  failures: [] // { key, code, msg }[]
 };
 
 // AWS S3 client
@@ -96,16 +103,20 @@ let s3 = null;
 const el = (id) => document.getElementById(id);
 
 function escapeHTML(str) {
-  const div = document.createElement('div');
+  const div = document.createElement("div");
   div.textContent = String(str);
   return div.innerHTML;
 }
 
 function formatBytes(bytes) {
   if (bytes === undefined || bytes === null) return "";
-  const units = ["B","KB","MB","GB","TB"];
-  let i = 0, n = bytes;
-  while (n >= 1024 && i < units.length - 1) { n /= 1024; i++; }
+  const units = ["B", "KB", "MB", "GB", "TB"];
+  let i = 0,
+    n = bytes;
+  while (n >= 1024 && i < units.length - 1) {
+    n /= 1024;
+    i++;
+  }
   return `${n.toFixed(n >= 100 ? 0 : 1)} ${units[i]}`;
 }
 
@@ -146,28 +157,30 @@ function clearInlineBanner(id) {
 
 // Theme helpers: accessible toggle, persisted in localStorage
 function currentTheme() {
-  const t = document.documentElement.getAttribute('data-theme');
-  return t === 'dark' ? 'dark' : 'light';
+  const t = document.documentElement.getAttribute("data-theme");
+  return t === "dark" ? "dark" : "light";
 }
 function setTheme(theme, persist = true) {
-  const t = theme === 'dark' ? 'dark' : 'light';
-  document.documentElement.setAttribute('data-theme', t);
+  const t = theme === "dark" ? "dark" : "light";
+  document.documentElement.setAttribute("data-theme", t);
   if (persist) {
-    try { localStorage.setItem('theme', t); } catch {}
+    try {
+      localStorage.setItem("theme", t);
+    } catch {}
   }
   updateThemeToggleUI();
 }
 function toggleTheme() {
-  setTheme(currentTheme() === 'dark' ? 'light' : 'dark');
+  setTheme(currentTheme() === "dark" ? "light" : "dark");
 }
 function updateThemeToggleUI() {
-  const isDark = currentTheme() === 'dark';
-  const label = 'Theme: ' + (isDark ? 'Dark' : 'Light');
-  ['themeToggleTop','themeToggleApp'].forEach(function(id) {
+  const isDark = currentTheme() === "dark";
+  const label = "Theme: " + (isDark ? "Dark" : "Light");
+  ["themeToggleTop", "themeToggleApp"].forEach(function (id) {
     var btn = el(id);
     if (!btn) return;
-    btn.setAttribute('aria-pressed', String(isDark));
-    btn.setAttribute('aria-label', label);
+    btn.setAttribute("aria-pressed", String(isDark));
+    btn.setAttribute("aria-label", label);
     btn.innerHTML = isDark ? getSunIconSVG() : getMoonIconSVG();
   });
 }
@@ -179,6 +192,18 @@ function getMoonIconSVG() {
 }
 // Expose a global for inline handlers without touching existing bindEvents
 window.__toggleTheme = toggleTheme;
+
+(function () {
+  var btn = document.getElementById("themeToggleTop");
+  if (btn) {
+    btn.addEventListener("click", function (e) {
+      e.preventDefault();
+      if (typeof window.__toggleTheme === "function") {
+        window.__toggleTheme();
+      }
+    });
+  }
+})();
 
 // Modal controls and focus management
 function openModal(overlayId, modalFocusId) {
@@ -205,29 +230,77 @@ function closeModal(overlayId) {
 function overlayClickToCloseHandler(e) {
   if (e.target.classList.contains("modal-overlay")) {
     // Find which overlay is clicked
-    if (e.target.id === "uploadModalOverlay") { UIState.modals.upload = false; closeModal("uploadModalOverlay"); }
-    if (e.target.id === "previewModalOverlay") { UIState.modals.preview = false; cleanupPreview(); closeModal("previewModalOverlay"); }
-    if (e.target.id === "createDirModalOverlay") { UIState.modals.createDir = false; closeModal("createDirModalOverlay"); }
-    if (e.target.id === "confirmDeleteModalOverlay") { UIState.modals.confirmDelete = false; closeModal("confirmDeleteModalOverlay"); }
-    if (e.target.id === "deleteDirModalOverlay") { UIState.modals.deleteDir = false; closeModal("deleteDirModalOverlay"); }
-    if (e.target.id === "infoModalOverlay") { UIState.modals.info = false; closeModal("infoModalOverlay"); }
-    if (e.target.id === "movePickerModalOverlay") { UIState.modals.movePicker = false; closeModal("movePickerModalOverlay"); }
-    if (e.target.id === "moveConfirmModalOverlay") { UIState.modals.moveConfirm = false; closeModal("moveConfirmModalOverlay"); }
-    if (e.target.id === "moveProgressModalOverlay") { UIState.modals.moveProgress = false; closeModal("moveProgressModalOverlay"); }
+    if (e.target.id === "uploadModalOverlay") {
+      UIState.modals.upload = false;
+      closeModal("uploadModalOverlay");
+    }
+    if (e.target.id === "previewModalOverlay") {
+      UIState.modals.preview = false;
+      cleanupPreview();
+      closeModal("previewModalOverlay");
+    }
+    if (e.target.id === "createDirModalOverlay") {
+      UIState.modals.createDir = false;
+      closeModal("createDirModalOverlay");
+    }
+    if (e.target.id === "confirmDeleteModalOverlay") {
+      UIState.modals.confirmDelete = false;
+      closeModal("confirmDeleteModalOverlay");
+    }
+    if (e.target.id === "deleteDirModalOverlay") {
+      UIState.modals.deleteDir = false;
+      closeModal("deleteDirModalOverlay");
+    }
+    if (e.target.id === "infoModalOverlay") {
+      UIState.modals.info = false;
+      closeModal("infoModalOverlay");
+    }
+    if (e.target.id === "movePickerModalOverlay") {
+      UIState.modals.movePicker = false;
+      closeModal("movePickerModalOverlay");
+    }
+    if (e.target.id === "moveConfirmModalOverlay") {
+      UIState.modals.moveConfirm = false;
+      closeModal("moveConfirmModalOverlay");
+    }
+    if (e.target.id === "moveProgressModalOverlay") {
+      UIState.modals.moveProgress = false;
+      closeModal("moveProgressModalOverlay");
+    }
   }
 }
 
 function escToCloseHandler(e) {
   if (e.key === "Escape") {
-    if (UIState.modals.upload) { UIState.modals.upload = false; closeModal("uploadModalOverlay"); }
-    else if (UIState.modals.preview) { UIState.modals.preview = false; cleanupPreview(); closeModal("previewModalOverlay"); }
-    else if (UIState.modals.createDir) { UIState.modals.createDir = false; closeModal("createDirModalOverlay"); }
-    else if (UIState.modals.confirmDelete) { UIState.modals.confirmDelete = false; closeModal("confirmDeleteModalOverlay"); }
-    else if (UIState.modals.deleteDir) { UIState.modals.deleteDir = false; closeModal("deleteDirModalOverlay"); }
-    else if (UIState.modals.movePicker) { UIState.modals.movePicker = false; closeModal("movePickerModalOverlay"); }
-    else if (UIState.modals.moveConfirm) { UIState.modals.moveConfirm = false; closeModal("moveConfirmModalOverlay"); }
-    else if (UIState.modals.moveProgress) { UIState.modals.moveProgress = false; closeModal("moveProgressModalOverlay"); }
-    else if (UIState.modals.info) { UIState.modals.info = false; closeModal("infoModalOverlay"); }
+    if (UIState.modals.upload) {
+      UIState.modals.upload = false;
+      closeModal("uploadModalOverlay");
+    } else if (UIState.modals.preview) {
+      UIState.modals.preview = false;
+      cleanupPreview();
+      closeModal("previewModalOverlay");
+    } else if (UIState.modals.createDir) {
+      UIState.modals.createDir = false;
+      closeModal("createDirModalOverlay");
+    } else if (UIState.modals.confirmDelete) {
+      UIState.modals.confirmDelete = false;
+      closeModal("confirmDeleteModalOverlay");
+    } else if (UIState.modals.deleteDir) {
+      UIState.modals.deleteDir = false;
+      closeModal("deleteDirModalOverlay");
+    } else if (UIState.modals.movePicker) {
+      UIState.modals.movePicker = false;
+      closeModal("movePickerModalOverlay");
+    } else if (UIState.modals.moveConfirm) {
+      UIState.modals.moveConfirm = false;
+      closeModal("moveConfirmModalOverlay");
+    } else if (UIState.modals.moveProgress) {
+      UIState.modals.moveProgress = false;
+      closeModal("moveProgressModalOverlay");
+    } else if (UIState.modals.info) {
+      UIState.modals.info = false;
+      closeModal("infoModalOverlay");
+    }
   }
 }
 
@@ -235,13 +308,22 @@ let focusTrapHandler = null;
 function trapFocus(container) {
   focusTrapHandler = (e) => {
     if (e.key !== "Tab") return;
-    const focusable = container.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
-    const list = Array.from(focusable).filter(el => !el.hasAttribute("disabled") && el.offsetParent !== null);
+    const focusable = container.querySelectorAll(
+      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+    );
+    const list = Array.from(focusable).filter(
+      (el) => !el.hasAttribute("disabled") && el.offsetParent !== null
+    );
     if (list.length === 0) return;
     const first = list[0];
     const last = list[list.length - 1];
-    if (e.shiftKey && document.activeElement === first) { last.focus(); e.preventDefault(); }
-    else if (!e.shiftKey && document.activeElement === last) { first.focus(); e.preventDefault(); }
+    if (e.shiftKey && document.activeElement === first) {
+      last.focus();
+      e.preventDefault();
+    } else if (!e.shiftKey && document.activeElement === last) {
+      first.focus();
+      e.preventDefault();
+    }
   };
   container.addEventListener("keydown", focusTrapHandler, true);
 }
@@ -366,10 +448,10 @@ async function listPrefix(prefix, continuationToken = null, reset = false) {
     clearInlineBanner("listErrorBanner");
     const data = await s3.listObjectsV2(params).promise();
 
-    const newPrefixes = (data.CommonPrefixes || []).map(cp => ({ prefix: cp.Prefix }));
+    const newPrefixes = (data.CommonPrefixes || []).map((cp) => ({ prefix: cp.Prefix }));
     const newObjects = (data.Contents || [])
-      .filter(o => o.Key !== (prefix || ""))
-      .map(o => ({
+      .filter((o) => o.Key !== (prefix || ""))
+      .map((o) => ({
         key: o.Key,
         size: o.Size,
         lastModified: o.LastModified ? new Date(o.LastModified).toLocaleString() : ""
@@ -415,7 +497,7 @@ async function listPrefix(prefix, continuationToken = null, reset = false) {
     function finalizeListing() {
       ListingState.nextContinuationToken = data.IsTruncated ? data.NextContinuationToken : null;
       el("loadMoreBtn").hidden = !ListingState.nextContinuationToken;
-      el("emptyState").hidden = (ListingState.prefixes.length + ListingState.objects.length) !== 0;
+      el("emptyState").hidden = ListingState.prefixes.length + ListingState.objects.length !== 0;
       OperationRegistry.listings.status = "idle";
       ListingState.isLoading = false;
       ListingState.lastRefreshedAt = Date.now();
@@ -460,14 +542,27 @@ function renderParentRow() {
   c1.appendChild(icon);
   c1.appendChild(link);
 
-  const c2 = document.createElement("div"); c2.setAttribute("role", "cell"); c2.style.textAlign = "center";
-  const badge = document.createElement("span"); badge.className = "type-badge"; badge.textContent = "folder";
+  const c2 = document.createElement("div");
+  c2.setAttribute("role", "cell");
+  c2.style.textAlign = "center";
+  const badge = document.createElement("span");
+  badge.className = "type-badge";
+  badge.textContent = "folder";
   c2.appendChild(badge);
 
-  const c3 = document.createElement("div"); c3.setAttribute("role", "cell"); c3.style.textAlign = "left"; c3.textContent = "-";
-  const c4 = document.createElement("div"); c4.setAttribute("role", "cell"); c4.textContent = "-";
+  const c3 = document.createElement("div");
+  c3.setAttribute("role", "cell");
+  c3.style.textAlign = "left";
+  c3.textContent = "-";
+  const c4 = document.createElement("div");
+  c4.setAttribute("role", "cell");
+  c4.textContent = "-";
 
-  row.appendChild(c0); row.appendChild(c1); row.appendChild(c2); row.appendChild(c3); row.appendChild(c4);
+  row.appendChild(c0);
+  row.appendChild(c1);
+  row.appendChild(c2);
+  row.appendChild(c3);
+  row.appendChild(c4);
   return row;
 }
 
@@ -501,14 +596,27 @@ function renderPrefixRow(p) {
   c1.appendChild(icon);
   c1.appendChild(link);
 
-  const c2 = document.createElement("div"); c2.setAttribute("role", "cell"); c2.style.textAlign = "center";
-  const badge = document.createElement("span"); badge.className = "type-badge"; badge.textContent = "folder";
+  const c2 = document.createElement("div");
+  c2.setAttribute("role", "cell");
+  c2.style.textAlign = "center";
+  const badge = document.createElement("span");
+  badge.className = "type-badge";
+  badge.textContent = "folder";
   c2.appendChild(badge);
 
-  const c3 = document.createElement("div"); c3.setAttribute("role", "cell"); c3.style.textAlign = "left"; c3.textContent = "-";
-  const c4 = document.createElement("div"); c4.setAttribute("role", "cell"); c4.textContent = "-";
+  const c3 = document.createElement("div");
+  c3.setAttribute("role", "cell");
+  c3.style.textAlign = "left";
+  c3.textContent = "-";
+  const c4 = document.createElement("div");
+  c4.setAttribute("role", "cell");
+  c4.textContent = "-";
 
-  row.appendChild(c0); row.appendChild(c1); row.appendChild(c2); row.appendChild(c3); row.appendChild(c4);
+  row.appendChild(c0);
+  row.appendChild(c1);
+  row.appendChild(c2);
+  row.appendChild(c3);
+  row.appendChild(c4);
   return row;
 }
 
@@ -539,14 +647,27 @@ function renderObjectRow(o) {
   });
   c1.appendChild(link);
 
-  const c2 = document.createElement("div"); c2.setAttribute("role", "cell"); c2.style.textAlign = "center";
-  const badge = document.createElement("span"); badge.className = "type-badge"; badge.textContent = "object";
+  const c2 = document.createElement("div");
+  c2.setAttribute("role", "cell");
+  c2.style.textAlign = "center";
+  const badge = document.createElement("span");
+  badge.className = "type-badge";
+  badge.textContent = "object";
   c2.appendChild(badge);
 
-  const c3 = document.createElement("div"); c3.setAttribute("role", "cell"); c3.style.textAlign = "left"; c3.textContent = formatBytes(o.size);
-  const c4 = document.createElement("div"); c4.setAttribute("role", "cell"); c4.textContent = o.lastModified || "";
+  const c3 = document.createElement("div");
+  c3.setAttribute("role", "cell");
+  c3.style.textAlign = "left";
+  c3.textContent = formatBytes(o.size);
+  const c4 = document.createElement("div");
+  c4.setAttribute("role", "cell");
+  c4.textContent = o.lastModified || "";
 
-  row.appendChild(c0); row.appendChild(c1); row.appendChild(c2); row.appendChild(c3); row.appendChild(c4);
+  row.appendChild(c0);
+  row.appendChild(c1);
+  row.appendChild(c2);
+  row.appendChild(c3);
+  row.appendChild(c4);
   return row;
 }
 
@@ -571,7 +692,9 @@ function updateSelectionUI() {
   el("deleteBtn").disabled = selectedCount === 0;
   const moveBtnEl = el("moveBtn");
   if (moveBtnEl) {
-    moveBtnEl.disabled = !(SelectionState.selectedKeys.size > 0 && SelectionState.selectedPrefixes.size === 0);
+    moveBtnEl.disabled = !(
+      SelectionState.selectedKeys.size > 0 && SelectionState.selectedPrefixes.size === 0
+    );
   }
   const downloadBtnEl = el("downloadBtn");
   if (downloadBtnEl) {
@@ -587,7 +710,11 @@ function updateSelectionUI() {
     const typeCell = row.children[2];
     const isFolder = (typeCell.querySelector(".type-badge")?.textContent || "") === "folder";
     const fullPath = computeRowFullPath(row);
-    const shouldBeChecked = !!fullPath && (isFolder ? SelectionState.selectedPrefixes.has(fullPath) : SelectionState.selectedKeys.has(fullPath));
+    const shouldBeChecked =
+      !!fullPath &&
+      (isFolder
+        ? SelectionState.selectedPrefixes.has(fullPath)
+        : SelectionState.selectedKeys.has(fullPath));
     if (cb.checked !== shouldBeChecked) {
       cb.checked = shouldBeChecked;
     }
@@ -597,7 +724,8 @@ function updateSelectionUI() {
   const header = el("selectAllPage");
   if (header) {
     const rows = el("rows").children;
-    let total = 0, checked = 0;
+    let total = 0,
+      checked = 0;
     for (const row of rows) {
       if (row.style.display === "none") continue; // only visible rows count toward header state
       const cb = row.querySelector("input[type='checkbox']");
@@ -636,13 +764,6 @@ function filterClear() {
   for (const row of rows) row.style.display = "";
 }
 
-async function applyBeginsWithListing() {
-  const text = FilterState.text;
-  const prefix = NavigationState.currentPrefix + text;
-  await listPrefix(prefix, null, true);
-  showToast("Filtered Listing", `Listed items beginning with "${escapeHTML(text)}" under ${escapeHTML(NavigationState.currentPrefix)}`);
-}
-
 // Connect and validation
 async function connect() {
   const { accessKeyId, secretAccessKey, region, bucket, ok } = validateConnectForm(true);
@@ -673,14 +794,19 @@ async function connect() {
 
     el("connect-card").hidden = true;
     el("app").hidden = false;
-    const infoFabEl = el("infoFab"); if (infoFabEl) infoFabEl.hidden = true;
+    const infoFabEl = el("infoFab");
+    if (infoFabEl) infoFabEl.hidden = true;
 
     el("connBucket").textContent = bucket;
     el("connRegion").textContent = region;
-    const signOutBtn = el("signOutBtn"); if (signOutBtn) signOutBtn.hidden = false;
+    const signOutBtn = el("signOutBtn");
+    if (signOutBtn) signOutBtn.hidden = false;
 
     navigateToPrefix("");
-    showToast("Connected", `Connected to bucket ${escapeHTML(bucket)} in region ${escapeHTML(region)}.`);
+    showToast(
+      "Connected",
+      `Connected to bucket ${escapeHTML(bucket)} in region ${escapeHTML(region)}.`
+    );
   } catch (err) {
     categorizeAndSurfaceError(err, "connectGeneralError");
   }
@@ -690,11 +816,19 @@ function categorizeAndSurfaceError(err, bannerId) {
   const status = err && (err.statusCode || err.status);
   const code = err && err.code;
   let category = "Unknown error";
-  if (status === 403 && code === "SignatureDoesNotMatch") category = "Authentication failed (signature mismatch).";
-  else if (status === 403 && code === "AccessDenied") category = "Insufficient permissions (AccessDenied).";
+  if (status === 403 && code === "SignatureDoesNotMatch")
+    category = "Authentication failed (signature mismatch).";
+  else if (status === 403 && code === "AccessDenied")
+    category = "Insufficient permissions (AccessDenied).";
   else if (status === 404 && code === "NoSuchBucket") category = "NoSuchBucket (bucket not found).";
-  else if (status === 301 || code === "AuthorizationHeaderMalformed" || code === "PermanentRedirect") category = "Region mismatch (bucket is in a different region).";
-  else if (code === "NetworkingError" || code === "TimeoutError") category = "Network interruption or timeout.";
+  else if (
+    status === 301 ||
+    code === "AuthorizationHeaderMalformed" ||
+    code === "PermanentRedirect"
+  )
+    category = "Region mismatch (bucket is in a different region).";
+  else if (code === "NetworkingError" || code === "TimeoutError")
+    category = "Network interruption or timeout.";
   const msg = `${category}${err && err.message ? " — " + err.message : ""}`;
   setInlineBanner(bannerId, msg, "error");
   showToast("Error", msg, { autoDismissMs: 12000 });
@@ -727,13 +861,13 @@ function renderUploadList() {
           <button class="btn btn-ghost" data-id="${id}" data-action="abort">Cancel</button>
         </div>
       </div>
-      <div class="progress" aria-label="Upload progress"><div style="width:${Math.floor(100 * (op.uploadedBytes / Math.max(op.totalBytes,1)))}%"></div></div>
+      <div class="progress" aria-label="Upload progress"><div style="width:${Math.floor(100 * (op.uploadedBytes / Math.max(op.totalBytes, 1)))}%"></div></div>
       <div class="helper">Status: ${escapeHTML(op.status)}</div>
     `;
     cont.appendChild(item);
   }
 
-  cont.querySelectorAll("button[data-action='abort']").forEach(btn => {
+  cont.querySelectorAll("button[data-action='abort']").forEach((btn) => {
     btn.addEventListener("click", () => {
       const id = btn.getAttribute("data-id");
       const op = OperationRegistry.uploads.get(id);
@@ -751,7 +885,8 @@ function renderUploadList() {
 
 function addUpload(file) {
   const key = NavigationState.currentPrefix + file.name;
-  const exists = ListingState.objects.some(o => o.key === key);
+  const exists = ListingState.objects.some((o) => o.key === key);
+  // eslint-disable-next-line no-alert
   const proceed = exists ? confirm(`Overwrite existing object?\n${key}`) : true;
   if (!proceed) return;
 
@@ -780,39 +915,52 @@ function addUpload(file) {
       entry.uploadedBytes = evt.loaded || entry.uploadedBytes;
       renderUploadList();
     });
-    mu.promise().then(() => {
-      entry.status = "completed";
-      showToast("Upload Complete", `${escapeHTML(file.name)} uploaded.`);
-      // cleanup and refresh listing
-      OperationRegistry.uploads.delete(id);
-      renderUploadList();
-      refreshListingNonBlocking();
-    }).catch((err) => {
-      entry.status = "failed";
-      showToast("Upload Failed", `${escapeHTML(file.name)} — ${escapeHTML(err.message || String(err))}`);
-      renderUploadList();
-    });
+    mu.promise()
+      .then(() => {
+        entry.status = "completed";
+        showToast("Upload Complete", `${escapeHTML(file.name)} uploaded.`);
+        // cleanup and refresh listing
+        OperationRegistry.uploads.delete(id);
+        renderUploadList();
+        refreshListingNonBlocking();
+      })
+      .catch((err) => {
+        entry.status = "failed";
+        showToast(
+          "Upload Failed",
+          `${escapeHTML(file.name)} — ${escapeHTML(err.message || String(err))}`
+        );
+        renderUploadList();
+      });
   } else {
     // Multipart via managed upload with configured partSize and queueSize
     const params = { Bucket: SessionState.bucket, Key: key, Body: file };
-    const mu = s3.upload(params, { partSize: Config.multipartPartSizeBytes, queueSize: Config.multipartConcurrency });
+    const mu = s3.upload(params, {
+      partSize: Config.multipartPartSizeBytes,
+      queueSize: Config.multipartConcurrency
+    });
     entry.managedUpload = mu;
     entry.status = "running";
     mu.on("httpUploadProgress", (evt) => {
       entry.uploadedBytes = evt.loaded || entry.uploadedBytes;
       renderUploadList();
     });
-    mu.promise().then(() => {
-      entry.status = "completed";
-      showToast("Upload Complete", `${escapeHTML(file.name)} uploaded.`);
-      OperationRegistry.uploads.delete(id);
-      renderUploadList();
-      refreshListingNonBlocking();
-    }).catch((err) => {
-      entry.status = "failed";
-      showToast("Upload Failed", `${escapeHTML(file.name)} — ${escapeHTML(err.message || String(err))}`);
-      renderUploadList();
-    });
+    mu.promise()
+      .then(() => {
+        entry.status = "completed";
+        showToast("Upload Complete", `${escapeHTML(file.name)} uploaded.`);
+        OperationRegistry.uploads.delete(id);
+        renderUploadList();
+        refreshListingNonBlocking();
+      })
+      .catch((err) => {
+        entry.status = "failed";
+        showToast(
+          "Upload Failed",
+          `${escapeHTML(file.name)} — ${escapeHTML(err.message || String(err))}`
+        );
+        renderUploadList();
+      });
   }
 }
 
@@ -822,7 +970,14 @@ function refreshListingNonBlocking() {
 
 // Preview and Download
 async function openPreviewModal(key) {
-  UIState.preview = { key, type: "unknown", truncated: false, content: null, blobUrl: null, contentType: "" };
+  UIState.preview = {
+    key,
+    type: "unknown",
+    truncated: false,
+    content: null,
+    blobUrl: null,
+    contentType: ""
+  };
   UIState.modals.preview = true;
   el("previewContent").innerHTML = "Loading preview…";
   openModal("previewModalOverlay", "previewModal");
@@ -830,22 +985,23 @@ async function openPreviewModal(key) {
   try {
     // Determine basic type by extension (fallback to getObject ContentType)
     const ext = (key.split(".").pop() || "").toLowerCase();
-    const isImageExt = ["png","jpg","jpeg","gif","webp","bmp","svg"].includes(ext);
-    const isTextExt = ["txt","md","json","csv","log","xml","ini","yaml","yml"].includes(ext);
+    const isImageExt = ["png", "jpg", "jpeg", "gif", "webp", "bmp", "svg"].includes(ext);
 
     if (isImageExt) {
       const data = await s3.getObject({ Bucket: SessionState.bucket, Key: key }).promise();
       const isSvg = ext === "svg";
-      const forcedType = isSvg ? "image/svg+xml" : (data.ContentType || "application/octet-stream");
+      const forcedType = isSvg ? "image/svg+xml" : data.ContentType || "application/octet-stream";
       const blob = toBlob(data.Body, forcedType);
       const url = URL.createObjectURL(blob);
       UIState.preview.type = "image";
       UIState.preview.blobUrl = url;
       UIState.preview.contentType = forcedType;
       if (isSvg) {
-        el("previewContent").innerHTML = `<object type="image/svg+xml" data="${url}" style="max-width:100%;height:auto;border:1px solid var(--border);border-radius:8px;"><div class="inline-banner error">SVG preview failed to render. You can still download.</div></object>`;
+        el("previewContent").innerHTML =
+          `<object type="image/svg+xml" data="${url}" style="max-width:100%;height:auto;border:1px solid var(--border);border-radius:8px;"><div class="inline-banner error">SVG preview failed to render. You can still download.</div></object>`;
       } else {
-        el("previewContent").innerHTML = `<img src="${url}" alt="Image preview" style="max-width:100%;height:auto;border:1px solid var(--border);border-radius:8px;" />`;
+        el("previewContent").innerHTML =
+          `<img src="${url}" alt="Image preview" style="max-width:100%;height:auto;border:1px solid var(--border);border-radius:8px;" />`;
       }
     } else {
       // Text preview: fetch full object (no Range) and truncate client-side to avoid signature issues
@@ -854,26 +1010,38 @@ async function openPreviewModal(key) {
       UIState.preview.contentType = data.ContentType || "";
       const blob = toBlob(data.Body, "text/plain");
       const fullSize = blob.size || 0;
-      const truncatedBlob = fullSize > Config.previewTextMaxBytes ? blob.slice(0, Config.previewTextMaxBytes) : blob;
+      const truncatedBlob =
+        fullSize > Config.previewTextMaxBytes ? blob.slice(0, Config.previewTextMaxBytes) : blob;
       const text = await truncatedBlob.text();
       UIState.preview.content = text;
       const truncated = fullSize > Config.previewTextMaxBytes;
       UIState.preview.truncated = truncated;
-      el("previewContent").innerHTML = `<pre style="white-space:pre-wrap;word-wrap:break-word;border:1px solid var(--border);border-radius:8px;padding:12px;max-height:60vh;overflow:auto;">${escapeHTML(text)}${truncated ? "\n\n[Preview truncated]" : ""}</pre>`;
+      el("previewContent").innerHTML =
+        `<pre style="white-space:pre-wrap;word-wrap:break-word;border:1px solid var(--border);border-radius:8px;padding:12px;max-height:60vh;overflow:auto;">${escapeHTML(text)}${truncated ? "\n\n[Preview truncated]" : ""}</pre>`;
     }
     // Hook up download
     el("previewDownloadBtn").onclick = () => downloadKey(key);
   } catch (err) {
-    el("previewContent").innerHTML = `<div class="inline-banner error">Preview failed — ${escapeHTML(err.message || String(err))}. You can still download.</div>`;
+    el("previewContent").innerHTML =
+      `<div class="inline-banner error">Preview failed — ${escapeHTML(err.message || String(err))}. You can still download.</div>`;
     el("previewDownloadBtn").onclick = () => downloadKey(key);
   }
 }
 
 function cleanupPreview() {
   if (UIState.preview.blobUrl) {
-    try { URL.revokeObjectURL(UIState.preview.blobUrl); } catch {}
+    try {
+      URL.revokeObjectURL(UIState.preview.blobUrl);
+    } catch {}
   }
-  UIState.preview = { key: "", type: "unknown", truncated: false, content: null, blobUrl: null, contentType: "" };
+  UIState.preview = {
+    key: "",
+    type: "unknown",
+    truncated: false,
+    content: null,
+    blobUrl: null,
+    contentType: ""
+  };
 }
 
 async function downloadKey(key) {
@@ -901,7 +1069,9 @@ async function downloadKey(key) {
     }
     updateSelectionUI();
   } catch (err) {
-    showToast("Download Failed", `${escapeHTML(err.message || String(err))}`, { autoDismissMs: 12000 });
+    showToast("Download Failed", `${escapeHTML(err.message || String(err))}`, {
+      autoDismissMs: 12000
+    });
   }
 }
 
@@ -924,11 +1094,6 @@ function toBlob(body, contentType) {
   }
 }
 
-async function bodyToText(body) {
-  const blob = toBlob(body, "text/plain");
-  return await blob.text();
-}
-
 async function bodyToArrayBuffer(body) {
   const blob = toBlob(body, "application/octet-stream");
   return await blob.arrayBuffer();
@@ -936,7 +1101,7 @@ async function bodyToArrayBuffer(body) {
 
 async function copyTextById(id) {
   const block = el(id);
-  const text = block ? (block.textContent || "") : "";
+  const text = block ? block.textContent || "" : "";
   if (!text) throw new Error("Nothing to copy");
   if (navigator.clipboard && navigator.clipboard.writeText) {
     await navigator.clipboard.writeText(text);
@@ -958,7 +1123,8 @@ async function createDirectory(name) {
   const trimmed = (name || "").trim();
   const valid = Config.allowedDirNamePattern.test(trimmed);
   if (!valid) {
-    el("dirNameError").textContent = "Invalid name. Allowed: letters, numbers, dot, underscore, hyphen.";
+    el("dirNameError").textContent =
+      "Invalid name. Allowed: letters, numbers, dot, underscore, hyphen.";
     el("dirNameError").hidden = false;
     return;
   }
@@ -966,7 +1132,14 @@ async function createDirectory(name) {
 
   const key = NavigationState.currentPrefix + trimmed + "/";
   try {
-    await s3.putObject({ Bucket: SessionState.bucket, Key: key, Body: new Uint8Array(0), ContentLength: 0 }).promise();
+    await s3
+      .putObject({
+        Bucket: SessionState.bucket,
+        Key: key,
+        Body: new Uint8Array(0),
+        ContentLength: 0
+      })
+      .promise();
     showToast("Directory Created", `${escapeHTML(key)}`);
     closeCreateDirModal();
     refreshListingNonBlocking();
@@ -996,14 +1169,14 @@ function openConfirmDeleteModal() {
   UIState.modals.confirmDelete = true;
   const body = el("confirmDeleteBody");
   if (keys.length && !prefixes.length) {
-    body.innerHTML = `<p>Delete the following object(s)? This action is irreversible.</p><ul>${keys.map(k => `<li>${escapeHTML(k)}</li>`).join("")}</ul>`;
+    body.innerHTML = `<p>Delete the following object(s)? This action is irreversible.</p><ul>${keys.map((k) => `<li>${escapeHTML(k)}</li>`).join("")}</ul>`;
     el("confirmDeleteBtn").onclick = async () => {
       await deleteObjects(keys);
       UIState.modals.confirmDelete = false;
       closeModal("confirmDeleteModalOverlay");
     };
   } else if (!keys.length && prefixes.length) {
-    body.innerHTML = `<p>Delete the following directory-like prefix(es)? This removes all objects under each prefix. Irreversible.</p><ul>${prefixes.map(p => `<li>${escapeHTML(p)}</li>`).join("")}</ul>`;
+    body.innerHTML = `<p>Delete the following directory-like prefix(es)? This removes all objects under each prefix. Irreversible.</p><ul>${prefixes.map((p) => `<li>${escapeHTML(p)}</li>`).join("")}</ul>`;
     el("confirmDeleteBtn").onclick = () => {
       UIState.modals.confirmDelete = false;
       closeModal("confirmDeleteModalOverlay");
@@ -1036,7 +1209,9 @@ async function deleteObjects(keys) {
     updateSelectionUI();
     refreshListingNonBlocking();
   } catch (err) {
-    showToast("Delete Failed", `${escapeHTML(err.message || String(err))}`, { autoDismissMs: 12000 });
+    showToast("Delete Failed", `${escapeHTML(err.message || String(err))}`, {
+      autoDismissMs: 12000
+    });
   }
 }
 
@@ -1067,7 +1242,7 @@ async function openDeleteDirModal(prefix) {
     if (listCont && listItems) {
       if (keys.length > 0) {
         const frag = document.createDocumentFragment();
-        keys.forEach(k => {
+        keys.forEach((k) => {
           const li = document.createElement("li");
           li.textContent = k;
           frag.appendChild(li);
@@ -1085,7 +1260,9 @@ async function openDeleteDirModal(prefix) {
       await bulkDeleteKeys(keys);
     };
     el("deleteDirRetryBtn").onclick = async () => {
-      const failed = Array.from(el("deleteDirFailureList").querySelectorAll("li")).map(li => li.dataset.key);
+      const failed = Array.from(el("deleteDirFailureList").querySelectorAll("li")).map(
+        (li) => li.dataset.key
+      );
       await bulkDeleteKeys(failed);
     };
   } catch (err) {
@@ -1105,7 +1282,7 @@ async function enumerateKeysUnderPrefix(prefix) {
     };
     if (token) params.ContinuationToken = token;
     const data = await s3.listObjectsV2(params).promise();
-    (data.Contents || []).forEach(o => keys.push(o.Key));
+    (data.Contents || []).forEach((o) => keys.push(o.Key));
     token = data.IsTruncated ? data.NextContinuationToken : null;
   } while (token);
   return keys;
@@ -1121,27 +1298,40 @@ async function bulkDeleteKeys(keys) {
   for (let i = 0; i < keys.length; i += Config.deleteBatchSize) {
     const batch = keys.slice(i, i + Config.deleteBatchSize);
     try {
-      const resp = await s3.deleteObjects({
-        Bucket: SessionState.bucket,
-        Delete: { Objects: batch.map(k => ({ Key: k })) }
-      }).promise();
+      const resp = await s3
+        .deleteObjects({
+          Bucket: SessionState.bucket,
+          Delete: { Objects: batch.map((k) => ({ Key: k })) }
+        })
+        .promise();
 
       deleted += (resp.Deleted || []).length;
       const errs = resp.Errors || [];
-      errs.forEach(e => failures.push({ key: e.Key, code: e.Code, msg: e.Message || "" }));
+      errs.forEach((e) => failures.push({ key: e.Key, code: e.Code, msg: e.Message || "" }));
 
       bar.style.width = `${Math.floor(100 * (deleted / total))}%`;
     } catch (err) {
       // Entire batch failed
-      batch.forEach(k => failures.push({ key: k, code: "BatchError", msg: err.message || String(err) }));
+      batch.forEach((k) =>
+        failures.push({ key: k, code: "BatchError", msg: err.message || String(err) })
+      );
     }
   }
 
   if (failures.length) {
     el("deleteDirFailures").hidden = false;
-    failureList.innerHTML = failures.map(f => `<li data-key="${escapeHTML(f.key)}">${escapeHTML(f.key)} — ${escapeHTML(f.code)} ${escapeHTML(f.msg)}</li>`).join("");
+    failureList.innerHTML = failures
+      .map(
+        (f) =>
+          `<li data-key="${escapeHTML(f.key)}">${escapeHTML(f.key)} — ${escapeHTML(f.code)} ${escapeHTML(f.msg)}</li>`
+      )
+      .join("");
     el("deleteDirRetryBtn").hidden = false;
-    showToast("Partial Failures", `${failures.length} item(s) failed to delete. Review and retry.`, { autoDismissMs: 15000 });
+    showToast(
+      "Partial Failures",
+      `${failures.length} item(s) failed to delete. Review and retry.`,
+      { autoDismissMs: 15000 }
+    );
   } else {
     showToast("Delete Complete", `Deleted ${total} item(s).`);
     UIState.modals.deleteDir = false;
@@ -1174,7 +1364,7 @@ async function listPrefixesOnly(prefix) {
     MaxKeys: Config.listPageSize
   };
   const data = await s3.listObjectsV2(params).promise();
-  return (data.CommonPrefixes || []).map(cp => cp.Prefix);
+  return (data.CommonPrefixes || []).map((cp) => cp.Prefix);
 }
 
 function renderMovePickerBreadcrumbs() {
@@ -1189,7 +1379,11 @@ function renderMovePickerBreadcrumbs() {
   root.dataset.prefix = "";
   root.textContent = "/";
   root.id = "move-crumb-root";
-  root.addEventListener("click", (e) => { e.preventDefault(); MoveState.pickerPrefix = ""; renderMovePicker(); });
+  root.addEventListener("click", (e) => {
+    e.preventDefault();
+    MoveState.pickerPrefix = "";
+    renderMovePicker();
+  });
   wrapper.appendChild(root);
   if (parts.length) {
     const sep = document.createElement("span");
@@ -1205,7 +1399,11 @@ function renderMovePickerBreadcrumbs() {
     a.dataset.prefix = acc;
     a.textContent = p;
     const targetPrefix = acc;
-    a.addEventListener("click", (e) => { e.preventDefault(); MoveState.pickerPrefix = targetPrefix; renderMovePicker(); });
+    a.addEventListener("click", (e) => {
+      e.preventDefault();
+      MoveState.pickerPrefix = targetPrefix;
+      renderMovePicker();
+    });
     if (idx === parts.length - 1) a.setAttribute("aria-current", "page");
     wrapper.appendChild(a);
     if (idx < parts.length - 1) {
@@ -1242,10 +1440,16 @@ async function renderMovePicker() {
     row.setAttribute("role", "row");
     row.dataset.parentRow = "true";
 
-    const c0 = document.createElement("div"); c0.setAttribute("role", "cell");
-    const c1 = document.createElement("div"); c1.setAttribute("role", "cell"); c1.className = "name-cell";
-    const icon = document.createElement("span"); icon.className = "folder-icon";
-    const link = document.createElement("a"); link.href = "#"; link.textContent = "..";
+    const c0 = document.createElement("div");
+    c0.setAttribute("role", "cell");
+    const c1 = document.createElement("div");
+    c1.setAttribute("role", "cell");
+    c1.className = "name-cell";
+    const icon = document.createElement("span");
+    icon.className = "folder-icon";
+    const link = document.createElement("a");
+    link.href = "#";
+    link.textContent = "..";
     link.addEventListener("click", (e) => {
       e.preventDefault();
       const cur = MoveState.pickerPrefix || "";
@@ -1255,38 +1459,82 @@ async function renderMovePicker() {
       MoveState.pickerPrefix = parent;
       renderMovePicker();
     });
-    c1.appendChild(icon); c1.appendChild(link);
-    const c2 = document.createElement("div"); c2.setAttribute("role", "cell"); c2.style.textAlign = "center"; const badge = document.createElement("span"); badge.className = "type-badge"; badge.textContent = "folder"; c2.appendChild(badge);
-    const c3 = document.createElement("div"); c3.setAttribute("role", "cell"); c3.style.textAlign = "left"; c3.textContent = "-";
-    const c4 = document.createElement("div"); c4.setAttribute("role", "cell"); c4.textContent = "-";
+    c1.appendChild(icon);
+    c1.appendChild(link);
+    const c2 = document.createElement("div");
+    c2.setAttribute("role", "cell");
+    c2.style.textAlign = "center";
+    const badge = document.createElement("span");
+    badge.className = "type-badge";
+    badge.textContent = "folder";
+    c2.appendChild(badge);
+    const c3 = document.createElement("div");
+    c3.setAttribute("role", "cell");
+    c3.style.textAlign = "left";
+    c3.textContent = "-";
+    const c4 = document.createElement("div");
+    c4.setAttribute("role", "cell");
+    c4.textContent = "-";
 
-    row.appendChild(c0); row.appendChild(c1); row.appendChild(c2); row.appendChild(c3); row.appendChild(c4);
+    row.appendChild(c0);
+    row.appendChild(c1);
+    row.appendChild(c2);
+    row.appendChild(c3);
+    row.appendChild(c4);
     rowsGroup.appendChild(row);
   }
 
   try {
     const prefixes = await listPrefixesOnly(MoveState.pickerPrefix || "");
-    prefixes.forEach(p => {
+    prefixes.forEach((p) => {
       const row = document.createElement("div");
       row.className = "list-row";
       row.setAttribute("role", "row");
 
-      const c0 = document.createElement("div"); c0.setAttribute("role", "cell");
-      const checkbox = document.createElement("input"); checkbox.type = "checkbox"; checkbox.disabled = true; c0.appendChild(checkbox);
+      const c0 = document.createElement("div");
+      c0.setAttribute("role", "cell");
+      const checkbox = document.createElement("input");
+      checkbox.type = "checkbox";
+      checkbox.disabled = true;
+      c0.appendChild(checkbox);
 
-      const c1 = document.createElement("div"); c1.setAttribute("role", "cell"); c1.className = "name-cell";
-      const icon = document.createElement("span"); icon.className = "folder-icon";
-      const link = document.createElement("a"); link.href = "#"; link.textContent = p.substring((MoveState.pickerPrefix || "").length) || p;
-      link.addEventListener("click", (e) => { e.preventDefault(); MoveState.pickerPrefix = p; renderMovePicker(); });
-      c1.appendChild(icon); c1.appendChild(link);
+      const c1 = document.createElement("div");
+      c1.setAttribute("role", "cell");
+      c1.className = "name-cell";
+      const icon = document.createElement("span");
+      icon.className = "folder-icon";
+      const link = document.createElement("a");
+      link.href = "#";
+      link.textContent = p.substring((MoveState.pickerPrefix || "").length) || p;
+      link.addEventListener("click", (e) => {
+        e.preventDefault();
+        MoveState.pickerPrefix = p;
+        renderMovePicker();
+      });
+      c1.appendChild(icon);
+      c1.appendChild(link);
 
-      const c2 = document.createElement("div"); c2.setAttribute("role", "cell"); c2.style.textAlign = "center";
-      const badge = document.createElement("span"); badge.className = "type-badge"; badge.textContent = "folder"; c2.appendChild(badge);
+      const c2 = document.createElement("div");
+      c2.setAttribute("role", "cell");
+      c2.style.textAlign = "center";
+      const badge = document.createElement("span");
+      badge.className = "type-badge";
+      badge.textContent = "folder";
+      c2.appendChild(badge);
 
-      const c3 = document.createElement("div"); c3.setAttribute("role", "cell"); c3.style.textAlign = "left"; c3.textContent = "-";
-      const c4 = document.createElement("div"); c4.setAttribute("role", "cell"); c4.textContent = "-";
+      const c3 = document.createElement("div");
+      c3.setAttribute("role", "cell");
+      c3.style.textAlign = "left";
+      c3.textContent = "-";
+      const c4 = document.createElement("div");
+      c4.setAttribute("role", "cell");
+      c4.textContent = "-";
 
-      row.appendChild(c0); row.appendChild(c1); row.appendChild(c2); row.appendChild(c3); row.appendChild(c4);
+      row.appendChild(c0);
+      row.appendChild(c1);
+      row.appendChild(c2);
+      row.appendChild(c3);
+      row.appendChild(c4);
       rowsGroup.appendChild(row);
     });
     // Destination is the current pickerPrefix
@@ -1304,7 +1552,10 @@ function openMovePickerModal() {
   const hasPrefixSelected = SelectionState.selectedPrefixes.size > 0;
   const hasKeySelected = SelectionState.selectedKeys.size > 0;
   if (!hasKeySelected || hasPrefixSelected) {
-    showToast("Move Not Supported", "Select one or more objects only. Moving directory prefixes is not supported.");
+    showToast(
+      "Move Not Supported",
+      "Select one or more objects only. Moving directory prefixes is not supported."
+    );
     return;
   }
   UIState.modals.movePicker = true;
@@ -1351,7 +1602,7 @@ function openMoveConfirmModal(keys, destPrefix, conflicts) {
     `;
   }
   if (conflicts && conflicts.length) {
-    if (list) list.innerHTML = conflicts.map(k => `<li>${escapeHTML(k)}</li>`).join("");
+    if (list) list.innerHTML = conflicts.map((k) => `<li>${escapeHTML(k)}</li>`).join("");
     if (card) card.hidden = false;
   } else {
     if (card) card.hidden = true;
@@ -1392,11 +1643,13 @@ async function performBulkMove(keys, destPrefix) {
         if (countEl) countEl.textContent = `Moving ${moved} of ${keys.length}…`;
         continue;
       }
-      await s3.copyObject({
-        Bucket: SessionState.bucket,
-        Key: destKey,
-        CopySource: encodeURIComponent(`${SessionState.bucket}/${key}`)
-      }).promise();
+      await s3
+        .copyObject({
+          Bucket: SessionState.bucket,
+          Key: destKey,
+          CopySource: encodeURIComponent(`${SessionState.bucket}/${key}`)
+        })
+        .promise();
       await s3.deleteObject({ Bucket: SessionState.bucket, Key: key }).promise();
       moved++;
       if (bar) bar.style.width = `${Math.floor(100 * (moved / keys.length))}%`;
@@ -1410,10 +1663,17 @@ async function performBulkMove(keys, destPrefix) {
   if (failures.length) {
     if (failuresCard) failuresCard.hidden = false;
     if (failureList) {
-      failureList.innerHTML = failures.map(f => `<li data-key="${escapeHTML(f.key)}" data-dest="${escapeHTML(f.destKey)}">${escapeHTML(f.key)} → ${escapeHTML(f.destKey)} — ${escapeHTML(f.code)} ${escapeHTML(f.msg)}</li>`).join("");
+      failureList.innerHTML = failures
+        .map(
+          (f) =>
+            `<li data-key="${escapeHTML(f.key)}" data-dest="${escapeHTML(f.destKey)}">${escapeHTML(f.key)} → ${escapeHTML(f.destKey)} — ${escapeHTML(f.code)} ${escapeHTML(f.msg)}</li>`
+        )
+        .join("");
     }
     if (retryBtn) retryBtn.hidden = false;
-    showToast("Partial Failures", `${failures.length} item(s) failed to move. Review and retry.`, { autoDismissMs: 15000 });
+    showToast("Partial Failures", `${failures.length} item(s) failed to move. Review and retry.`, {
+      autoDismissMs: 15000
+    });
   } else {
     showToast("Move Complete", `Moved ${keys.length} item(s).`);
     UIState.modals.moveProgress = false;
@@ -1465,7 +1725,7 @@ async function gatherSelectionKeys() {
   for (const p of prefixes) {
     try {
       const under = await enumerateKeysUnderPrefix(p);
-      under.forEach(k => keys.add(k));
+      under.forEach((k) => keys.add(k));
     } catch (err) {
       showToast("Enumeration Failed", `${escapeHTML(err.message || String(err))}`);
     }
@@ -1493,7 +1753,9 @@ async function startMultiDownload() {
     }
     await buildZipAndDownload(keys);
   } catch (err) {
-    showToast("Download Failed", `${escapeHTML(err.message || String(err))}`, { autoDismissMs: 12000 });
+    showToast("Download Failed", `${escapeHTML(err.message || String(err))}`, {
+      autoDismissMs: 12000
+    });
   }
 }
 
@@ -1520,11 +1782,17 @@ async function buildZipAndDownload(keys) {
         const ab = await bodyToArrayBuffer(data.Body);
         DownloadState.zip.file(key, ab);
       } catch (err) {
-        DownloadState.failures.push({ key, code: err?.code || "Error", msg: err?.message || String(err) });
+        DownloadState.failures.push({
+          key,
+          code: err?.code || "Error",
+          msg: err?.message || String(err)
+        });
       } finally {
         DownloadState.keysFetched++;
-        if (bar) bar.style.width = `${Math.floor(100 * (DownloadState.keysFetched / DownloadState.keysTotal))}%`;
-        if (countEl) countEl.textContent = `Fetched ${DownloadState.keysFetched} of ${DownloadState.keysTotal}…`;
+        if (bar)
+          bar.style.width = `${Math.floor(100 * (DownloadState.keysFetched / DownloadState.keysTotal))}%`;
+        if (countEl)
+          countEl.textContent = `Fetched ${DownloadState.keysFetched} of ${DownloadState.keysTotal}…`;
       }
     }
   }
@@ -1533,7 +1801,10 @@ async function buildZipAndDownload(keys) {
     if (failureCard) failureCard.hidden = false;
     if (failureList) {
       failureList.innerHTML = DownloadState.failures
-        .map(f => `<li data-key="${escapeHTML(f.key)}">${escapeHTML(f.key)} — ${escapeHTML(f.code)} ${escapeHTML(f.msg)}</li>`)
+        .map(
+          (f) =>
+            `<li data-key="${escapeHTML(f.key)}">${escapeHTML(f.key)} — ${escapeHTML(f.code)} ${escapeHTML(f.msg)}</li>`
+        )
         .join("");
     }
     const retryBtn = el("downloadRetryFailedBtn");
@@ -1558,7 +1829,8 @@ async function retryFailedDownloads(failedKeys) {
   const total = failedKeys.length;
   let done = 0;
   function update() {
-    if (bar) bar.style.width = `${Math.floor(100 * (DownloadState.keysFetched / Math.max(DownloadState.keysTotal, 1)))}%`;
+    if (bar)
+      bar.style.width = `${Math.floor(100 * (DownloadState.keysFetched / Math.max(DownloadState.keysTotal, 1)))}%`;
     if (countEl) countEl.textContent = `Retrying ${done} of ${total} failed…`;
   }
   update();
@@ -1572,7 +1844,11 @@ async function retryFailedDownloads(failedKeys) {
         const ab = await bodyToArrayBuffer(data.Body);
         DownloadState.zip.file(key, ab);
       } catch (err) {
-        DownloadState.failures.push({ key, code: err?.code || "Error", msg: err?.message || String(err) });
+        DownloadState.failures.push({
+          key,
+          code: err?.code || "Error",
+          msg: err?.message || String(err)
+        });
       } finally {
         done++;
         DownloadState.keysFetched++;
@@ -1580,12 +1856,17 @@ async function retryFailedDownloads(failedKeys) {
       }
     }
   }
-  await Promise.all(Array.from({ length: Math.min(concurrency, failedKeys.length) }, () => worker()));
+  await Promise.all(
+    Array.from({ length: Math.min(concurrency, failedKeys.length) }, () => worker())
+  );
   if (DownloadState.failures.length) {
     if (failureCard) failureCard.hidden = false;
     if (failureList) {
       failureList.innerHTML = DownloadState.failures
-        .map(f => `<li data-key="${escapeHTML(f.key)}">${escapeHTML(f.key)} — ${escapeHTML(f.code)} ${escapeHTML(f.msg)}</li>`)
+        .map(
+          (f) =>
+            `<li data-key="${escapeHTML(f.key)}">${escapeHTML(f.key)} — ${escapeHTML(f.code)} ${escapeHTML(f.msg)}</li>`
+        )
         .join("");
     }
     if (retryBtn) retryBtn.hidden = false;
@@ -1627,7 +1908,9 @@ async function finalizeZipAndDownload() {
 
     closeDownloadProgressModal();
   } catch (err) {
-    showToast("Download Failed", `${escapeHTML(err.message || String(err))}`, { autoDismissMs: 12000 });
+    showToast("Download Failed", `${escapeHTML(err.message || String(err))}`, {
+      autoDismissMs: 12000
+    });
   } finally {
     DownloadState.inProgress = false;
     DownloadState.zip = null;
@@ -1640,8 +1923,10 @@ async function finalizeZipAndDownload() {
 // Sign-out
 function signOut() {
   // Abort uploads
-  for (const [id, op] of OperationRegistry.uploads.entries()) {
-    try { op.managedUpload?.abort(); } catch {}
+  for (const [, op] of OperationRegistry.uploads.entries()) {
+    try {
+      op.managedUpload?.abort();
+    } catch {}
   }
   OperationRegistry.uploads.clear();
   OperationRegistry.deletes.clear();
@@ -1676,8 +1961,10 @@ function signOut() {
   el("emptyState").hidden = true;
   el("connect-card").hidden = false;
   el("app").hidden = true;
-  const infoFabEl = el("infoFab"); if (infoFabEl) infoFabEl.hidden = false;
-  const signOutBtn = el("signOutBtn"); if (signOutBtn) signOutBtn.hidden = true;
+  const infoFabEl = el("infoFab");
+  if (infoFabEl) infoFabEl.hidden = false;
+  const signOutBtn = el("signOutBtn");
+  if (signOutBtn) signOutBtn.hidden = true;
   el("accessKeyId").value = "";
   el("secretAccessKey").value = "";
   el("region").value = "";
@@ -1689,13 +1976,16 @@ function signOut() {
 
 // Event bindings
 function bindEvents() {
-  ["accessKeyId","secretAccessKey","region","bucket"].forEach(id => {
+  ["accessKeyId", "secretAccessKey", "region", "bucket"].forEach((id) => {
     el(id).addEventListener("input", () => validateConnectForm(false));
   });
 
   el("connectBtn").addEventListener("click", connect);
 
-  el("crumb-root").addEventListener("click", (e) => { e.preventDefault(); navigateToPrefix(""); });
+  el("crumb-root").addEventListener("click", (e) => {
+    e.preventDefault();
+    navigateToPrefix("");
+  });
 
   el("signOutBtn").addEventListener("click", signOut);
 
@@ -1708,8 +1998,18 @@ function bindEvents() {
 
   const dropzone = el("dropzone");
   dropzone.addEventListener("click", () => el("filePicker").click());
-  ["dragenter","dragover"].forEach(evt => dropzone.addEventListener(evt, (e) => { e.preventDefault(); dropzone.classList.add("dragover"); }));
-  ["dragleave","drop"].forEach(evt => dropzone.addEventListener(evt, (e) => { e.preventDefault(); dropzone.classList.remove("dragover"); }));
+  ["dragenter", "dragover"].forEach((evt) =>
+    dropzone.addEventListener(evt, (e) => {
+      e.preventDefault();
+      dropzone.classList.add("dragover");
+    })
+  );
+  ["dragleave", "drop"].forEach((evt) =>
+    dropzone.addEventListener(evt, (e) => {
+      e.preventDefault();
+      dropzone.classList.remove("dragover");
+    })
+  );
   dropzone.addEventListener("drop", (e) => {
     const files = Array.from(e.dataTransfer.files || []);
     files.forEach(addUpload);
@@ -1718,8 +2018,16 @@ function bindEvents() {
   el("closeUploadModalBtn").addEventListener("click", closeUploadModal);
   el("uploadCloseBtn").addEventListener("click", closeUploadModal);
 
-  el("previewCloseBtn").addEventListener("click", () => { UIState.modals.preview = false; cleanupPreview(); closeModal("previewModalOverlay"); });
-  el("closePreviewModalBtn").addEventListener("click", () => { UIState.modals.preview = false; cleanupPreview(); closeModal("previewModalOverlay"); });
+  el("previewCloseBtn").addEventListener("click", () => {
+    UIState.modals.preview = false;
+    cleanupPreview();
+    closeModal("previewModalOverlay");
+  });
+  el("closePreviewModalBtn").addEventListener("click", () => {
+    UIState.modals.preview = false;
+    cleanupPreview();
+    closeModal("previewModalOverlay");
+  });
 
   el("createDirBtn").addEventListener("click", openCreateDirModal);
   el("createDirConfirmBtn").addEventListener("click", () => createDirectory(el("dirName").value));
@@ -1727,11 +2035,23 @@ function bindEvents() {
   el("closeCreateDirModalBtn").addEventListener("click", closeCreateDirModal);
 
   el("deleteBtn").addEventListener("click", openConfirmDeleteModal);
-  el("confirmDeleteCancelBtn").addEventListener("click", () => { UIState.modals.confirmDelete = false; closeModal("confirmDeleteModalOverlay"); });
-  el("closeConfirmDeleteModalBtn").addEventListener("click", () => { UIState.modals.confirmDelete = false; closeModal("confirmDeleteModalOverlay"); });
+  el("confirmDeleteCancelBtn").addEventListener("click", () => {
+    UIState.modals.confirmDelete = false;
+    closeModal("confirmDeleteModalOverlay");
+  });
+  el("closeConfirmDeleteModalBtn").addEventListener("click", () => {
+    UIState.modals.confirmDelete = false;
+    closeModal("confirmDeleteModalOverlay");
+  });
 
-  el("deleteDirCancelBtn").addEventListener("click", () => { UIState.modals.deleteDir = false; closeModal("deleteDirModalOverlay"); });
-  el("closeDeleteDirModalBtn").addEventListener("click", () => { UIState.modals.deleteDir = false; closeModal("deleteDirModalOverlay"); });
+  el("deleteDirCancelBtn").addEventListener("click", () => {
+    UIState.modals.deleteDir = false;
+    closeModal("deleteDirModalOverlay");
+  });
+  el("closeDeleteDirModalBtn").addEventListener("click", () => {
+    UIState.modals.deleteDir = false;
+    closeModal("deleteDirModalOverlay");
+  });
 
   el("filterInput").addEventListener("input", (e) => {
     FilterState.text = e.target.value;
@@ -1742,7 +2062,10 @@ function bindEvents() {
   el("clearFilterBtn").addEventListener("click", filterClear);
 
   const refreshBtnEl = el("refreshBtn");
-  if (refreshBtnEl) refreshBtnEl.addEventListener("click", () => listPrefix(NavigationState.currentPrefix, null, true));
+  if (refreshBtnEl)
+    refreshBtnEl.addEventListener("click", () =>
+      listPrefix(NavigationState.currentPrefix, null, true)
+    );
 
   el("loadMoreBtn").addEventListener("click", async () => {
     const token = ListingState.nextContinuationToken;
@@ -1794,24 +2117,38 @@ function bindEvents() {
   }
   const closeInfoBtn = el("closeInfoModalBtn");
   if (closeInfoBtn) {
-    closeInfoBtn.addEventListener("click", () => { UIState.modals.info = false; closeModal("infoModalOverlay"); });
+    closeInfoBtn.addEventListener("click", () => {
+      UIState.modals.info = false;
+      closeModal("infoModalOverlay");
+    });
   }
   const infoCloseBtnFooter = el("infoCloseBtn");
   if (infoCloseBtnFooter) {
-    infoCloseBtnFooter.addEventListener("click", () => { UIState.modals.info = false; closeModal("infoModalOverlay"); });
+    infoCloseBtnFooter.addEventListener("click", () => {
+      UIState.modals.info = false;
+      closeModal("infoModalOverlay");
+    });
   }
   const copyIamBtn = el("copyIamPolicyBtn");
   if (copyIamBtn) {
     copyIamBtn.addEventListener("click", async () => {
-      try { await copyTextById("iamPolicyBlock"); showToast("Copied", "IAM Policy copied to clipboard."); }
-      catch (err) { showToast("Copy Failed", err?.message || String(err)); }
+      try {
+        await copyTextById("iamPolicyBlock");
+        showToast("Copied", "IAM Policy copied to clipboard.");
+      } catch (err) {
+        showToast("Copy Failed", err?.message || String(err));
+      }
     });
   }
   const copyCorsBtn = el("copyCorsBtn");
   if (copyCorsBtn) {
     copyCorsBtn.addEventListener("click", async () => {
-      try { await copyTextById("corsBlock"); showToast("Copied", "CORS config copied to clipboard."); }
-      catch (err) { showToast("Copy Failed", err?.message || String(err)); }
+      try {
+        await copyTextById("corsBlock");
+        showToast("Copied", "CORS config copied to clipboard.");
+      } catch (err) {
+        showToast("Copy Failed", err?.message || String(err));
+      }
     });
   }
 
@@ -1838,11 +2175,17 @@ function bindEvents() {
   }
   const movePickerCancelBtn = el("movePickerCancelBtn");
   if (movePickerCancelBtn) {
-    movePickerCancelBtn.addEventListener("click", () => { UIState.modals.movePicker = false; closeModal("movePickerModalOverlay"); });
+    movePickerCancelBtn.addEventListener("click", () => {
+      UIState.modals.movePicker = false;
+      closeModal("movePickerModalOverlay");
+    });
   }
   const closeMovePickerModalBtn = el("closeMovePickerModalBtn");
   if (closeMovePickerModalBtn) {
-    closeMovePickerModalBtn.addEventListener("click", () => { UIState.modals.movePicker = false; closeModal("movePickerModalOverlay"); });
+    closeMovePickerModalBtn.addEventListener("click", () => {
+      UIState.modals.movePicker = false;
+      closeModal("movePickerModalOverlay");
+    });
   }
 
   const moveConfirmOverwriteBtn = el("moveConfirmOverwriteBtn");
@@ -1864,18 +2207,24 @@ function bindEvents() {
   }
   const moveConfirmCancelBtn = el("moveConfirmCancelBtn");
   if (moveConfirmCancelBtn) {
-    moveConfirmCancelBtn.addEventListener("click", () => { UIState.modals.moveConfirm = false; closeModal("moveConfirmModalOverlay"); });
+    moveConfirmCancelBtn.addEventListener("click", () => {
+      UIState.modals.moveConfirm = false;
+      closeModal("moveConfirmModalOverlay");
+    });
   }
   const closeMoveConfirmModalBtn = el("closeMoveConfirmModalBtn");
   if (closeMoveConfirmModalBtn) {
-    closeMoveConfirmModalBtn.addEventListener("click", () => { UIState.modals.moveConfirm = false; closeModal("moveConfirmModalOverlay"); });
+    closeMoveConfirmModalBtn.addEventListener("click", () => {
+      UIState.modals.moveConfirm = false;
+      closeModal("moveConfirmModalOverlay");
+    });
   }
 
   const moveRetryFailedBtn = el("moveRetryFailedBtn");
   if (moveRetryFailedBtn) {
     moveRetryFailedBtn.addEventListener("click", async () => {
       const items = Array.from(el("moveFailureList")?.querySelectorAll("li") || []);
-      const failedKeys = items.map(li => li.dataset.key).filter(Boolean);
+      const failedKeys = items.map((li) => li.dataset.key).filter(Boolean);
       if (failedKeys.length) {
         await performBulkMove(failedKeys, MoveState.destPrefix || "");
       }
@@ -1883,11 +2232,17 @@ function bindEvents() {
   }
   const moveProgressCancelBtn = el("moveProgressCancelBtn");
   if (moveProgressCancelBtn) {
-    moveProgressCancelBtn.addEventListener("click", () => { UIState.modals.moveProgress = false; closeModal("moveProgressModalOverlay"); });
+    moveProgressCancelBtn.addEventListener("click", () => {
+      UIState.modals.moveProgress = false;
+      closeModal("moveProgressModalOverlay");
+    });
   }
   const closeMoveProgressModalBtn = el("closeMoveProgressModalBtn");
   if (closeMoveProgressModalBtn) {
-    closeMoveProgressModalBtn.addEventListener("click", () => { UIState.modals.moveProgress = false; closeModal("moveProgressModalOverlay"); });
+    closeMoveProgressModalBtn.addEventListener("click", () => {
+      UIState.modals.moveProgress = false;
+      closeModal("moveProgressModalOverlay");
+    });
   }
 
   // Download feature bindings
@@ -1899,7 +2254,7 @@ function bindEvents() {
   if (downloadRetryFailedBtn) {
     downloadRetryFailedBtn.addEventListener("click", async () => {
       const items = Array.from(el("downloadFailureList")?.querySelectorAll("li") || []);
-      const failed = items.map(li => li.dataset.key).filter(Boolean);
+      const failed = items.map((li) => li.dataset.key).filter(Boolean);
       if (failed.length) {
         await retryFailedDownloads(failed);
       }
@@ -1907,13 +2262,18 @@ function bindEvents() {
   }
   const downloadProgressCancelBtn = el("downloadProgressCancelBtn");
   if (downloadProgressCancelBtn) {
-    downloadProgressCancelBtn.addEventListener("click", () => { UIState.modals.downloadProgress = false; closeModal("downloadProgressModalOverlay"); });
+    downloadProgressCancelBtn.addEventListener("click", () => {
+      UIState.modals.downloadProgress = false;
+      closeModal("downloadProgressModalOverlay");
+    });
   }
   const closeDownloadProgressModalBtn = el("closeDownloadProgressModalBtn");
   if (closeDownloadProgressModalBtn) {
-    closeDownloadProgressModalBtn.addEventListener("click", () => { UIState.modals.downloadProgress = false; closeModal("downloadProgressModalOverlay"); });
+    closeDownloadProgressModalBtn.addEventListener("click", () => {
+      UIState.modals.downloadProgress = false;
+      closeModal("downloadProgressModalOverlay");
+    });
   }
-
 }
 
 // Initialization
@@ -1926,6 +2286,8 @@ function init() {
   validateConnectForm(false);
 
   // Initialize theme toggle UI icons/labels without causing layout shift
-  try { updateThemeToggleUI(); } catch {}
+  try {
+    updateThemeToggleUI();
+  } catch {}
 }
 init();

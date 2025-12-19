@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json.schemastore.org/stylelintrc",
+  "rules": {
+    "color-no-invalid-hex": true,
+    "font-family-no-duplicate-names": true,
+    "function-calc-no-unspaced-operator": true,
+    "string-no-newline": true,
+    "no-duplicate-selectors": true,
+    "block-no-empty": true,
+    "property-no-unknown": true,
+    "declaration-block-no-duplicate-properties": [true, { "ignore": ["consecutive-duplicates-with-different-values"] }],
+    "selector-type-no-unknown": true
+  }
+}

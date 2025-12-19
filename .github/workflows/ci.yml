@@ -1,0 +1,32 @@
+name: CI - Lint and Format Checks
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: ["**"]
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "18"
+          cache: "npm"
+
+      - name: HTMLHint
+        run: npx --yes htmlhint@1.1.4 index.html
+
+      - name: Stylelint
+        run: npx --yes stylelint@16.8.0 "assets/css/**/*.css"
+
+      - name: ESLint
+        run: npx --yes eslint@8.57.0 assets/js --ext .js
+
+      - name: Prettier Check
+        run: npx --yes prettier@3.2.4 --check "**/*.{html,css,js,md}"
