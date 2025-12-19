@@ -89,6 +89,7 @@ Your IAM user must have permissions for:
 - s3:ListBucket
 - s3:GetObject
 - s3:PutObject
+- s3:DeleteObject
 
 Minimal example policy and CORS configuration are shown in the Requirements modal within the app.
 
