@@ -1,0 +1,3048 @@
+<!DOCTYPE html>
+<html lang="en">
+<!--
+Single-file, browser-only S3 File Manager
+Primary deliverable: [index.html](index.html)
+AWS SDK v2 pinned version: 2.1488.0
+
+Security reminders:
+- Secrets are never persisted; they remain in memory until sign-out or page close.
+- Secret access key is never logged or rendered in UI.
+-->
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <!-- Early theme init to prevent flash of wrong theme -->
+  <script>
+    (function () {
+      try {
+        var stored = localStorage.getItem('theme');
+        var theme = stored || (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+        document.documentElement.setAttribute('data-theme', theme);
+      } catch (e) {}
+    })();
+  </script>
+  <title>S3 Explorer</title>
+  <style>
+    :root {
+      --bg: #ffffff;
+      --bg-muted: #f8fafc; /* light slate */
+      --border: #e5e7eb; /* gray-200 */
+      --text: #0f172a; /* slate-900 */
+      --text-muted: #334155; /* slate-700 */
+      --focus: #2563EB; /* per Config.uiFocusOutlineColor */
+      --primary: #2563EB;
+      --primary-contrast: #ffffff;
+      --secondary-bg: #e5e7eb;
+      --secondary-text: #0f172a;
+      --destructive-bg: #dc2626; /* red-600 */
+      --destructive-text: #ffffff;
+      --warning-bg: #fef3c7; /* amber-100 */
+      --warning-text: #92400e; /* amber-800 */
+      --error-bg: #fee2e2; /* red-100 */
+      --error-text: #7f1d1d; /* red-900 */
+      --success-bg: #ecfdf5; /* emerald-50 */
+      --success-text: #065f46; /* emerald-800 */
+      --toast-bg: #111827cc; /* neutral with opacity */
+      --toast-text: #f9fafb;
+      --shadow: 0 1px 2px rgba(0,0,0,0.06), 0 2px 4px rgba(0,0,0,0.06);
+    }
+
+    html, body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+      line-height: 1.5;
+      margin: 0;
+      padding: 0;
+    }
+
+    *:focus-visible {
+      outline: 3px solid var(--focus);
+      outline-offset: 2px;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 24px;
+    }
+
+    .banner {
+      background: var(--warning-bg);
+      color: var(--warning-text);
+      border: 1px solid #fde68a; /* amber-200 */
+      padding: 12px 16px;
+      border-radius: 8px;
+      margin: 16px 0;
+    }
+
+    .card {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      box-shadow: var(--shadow);
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px 16px;
+    }
+    /* Ensure children can shrink inside grid to avoid overflow/overlap */
+    .form-grid > div { min-width: 0; }
+    @media (max-width: 800px) {
+      .form-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    label {
+      display: block;
+      font-weight: 600;
+      margin-bottom: 6px;
+    }
+
+    .helper {
+      font-size: 0.875rem;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+    .error-text {
+      font-size: 0.875rem;
+      color: var(--error-text);
+      margin-top: 4px;
+    }
+
+    input[type="text"],
+    input[type="password"],
+    select {
+      width: 100%;
+      padding: 10px 12px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    /* Enhanced padding class for connection form inputs */
+    .form-input {
+      width: 100%;
+      box-sizing: border-box; /* include padding in width to prevent overlap */
+      padding: 12px 16px;     /* increased horizontal padding */
+      border-radius: 10px;
+    }
+
+    .actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 12px;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 10px 14px;
+      border-radius: 8px;
+      border: 1px solid transparent;
+      cursor: pointer;
+      user-select: none;
+      text-decoration: none;
+      font-weight: 600;
+    }
+    .btn[disabled] {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+    .btn-primary {
+      background: var(--primary);
+      color: var(--primary-contrast);
+    }
+    .btn-secondary {
+      background: var(--secondary-bg);
+      color: var(--secondary-text);
+      border-color: var(--border);
+    }
+    .btn-destructive {
+      background: var(--destructive-bg);
+      color: var(--destructive-text);
+    }
+    .btn-ghost {
+      background: transparent;
+      color: var(--text-muted);
+      border-color: var(--border);
+    }
+    .btn-ghost:hover {
+      background: var(--bg-muted);
+      color: var(--text);
+      border-color: var(--border);
+    }
+    /* Icon sizing for inline SVGs inside buttons */
+    .btn .btn-icon {
+      width: 18px;
+      height: 18px;
+      flex: 0 0 auto;
+    }
+
+    /* Title icon next to heading */
+    .title-icon {
+      width: 24px;
+      height: 24px;
+      margin-right: 8px;
+      vertical-align: text-bottom;
+      flex: 0 0 auto;
+    }
+
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 8px 0 12px 0;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 12px;
+      background: transparent;
+      border-radius: 0;
+      box-shadow: none;
+    }
+
+    .breadcrumbs {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 6px;
+      font-weight: 600;
+    }
+    .breadcrumbs a {
+      color: var(--text);
+      text-decoration: none;
+      padding: 2px 4px;
+      border-radius: 6px;
+      transition: color 0.5s ease, text-decoration-color 0.5s ease, background 0.4s ease;
+    }
+    .breadcrumbs a:hover {
+      color: var(--text);
+      text-decoration: underline;
+      text-decoration-thickness: 2px;
+      text-underline-offset: 3px;
+      background: transparent;
+    }
+    .crumb-sep {
+      color: var(--text-muted);
+      opacity: 0.6;
+      margin: 0 2px;
+    }
+
+    /* Root crumb minimal styling */
+    #crumb-root {
+      display: inline-flex;
+      align-items: center;
+      gap: 0;
+    }
+
+    /* Connection indicator (clean, inline) */
+    .conn-indicator {
+      color: var(--text-muted);
+      font-size: 0.9rem;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+    .conn-item {
+      color: var(--text-muted);
+      font-weight: 600;
+    }
+    .conn-sep {
+      color: var(--text-muted);
+      opacity: 0.6;
+    }
+
+    .toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 8px;
+      flex-wrap: wrap; /* allow right section to drop below on narrow screens */
+    }
+    .toolbar-left {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: nowrap; /* keep filter + Clear + Refresh on the same row */
+    }
+    .toolbar-right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .search-input {
+      flex: 0 1 350px; /* allow shrinking without wrapping siblings */
+      width: 350px;
+      min-width: 300px;
+    }
+    @media (max-width: 700px) {
+      .search-input {
+        flex: 0 1 200px;
+        width: 200px; /* avoid 90% which caused wrapping */
+      }
+      .toolbar-left {
+        flex-wrap: wrap;
+      }
+    }
+
+    /* List view */
+    .list {
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+    .list-header, .list-row {
+      display: grid;
+      grid-template-columns: 40px minmax(200px, 1fr) 120px 140px 160px;
+      align-items: center;
+      gap: 8px;
+    }
+    .list-header {
+      background: var(--bg-muted);
+      padding: 10px 12px;
+      font-weight: 700;
+    }
+    .list-row {
+      padding: 10px 12px;
+      border-top: 1px solid var(--border);
+    }
+    .list-row:hover {
+      background: #f1f5f9; /* slate-100 tint */
+    }
+    .list-row.selected {
+      background: #e0f2fe; /* sky-100 */
+    }
+    .name-cell {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .type-badge {
+      display: inline-block;
+      border-radius: 999px;
+      padding: 4px 8px;
+      font-size: 0.85rem;
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      background: var(--bg);
+    }
+    .folder-icon {
+      width: 18px;
+      height: 18px;
+      display: inline-block;
+      background: #e5e7eb;
+      border: 1px solid #cbd5e1;
+      border-radius: 3px;
+      position: relative;
+    }
+    .folder-icon::before {
+      content: "";
+      position: absolute;
+      width: 8px;
+      height: 4px;
+      background: #cbd5e1;
+      top: -3px;
+      left: 2px;
+      border-radius: 2px 2px 0 0;
+    }
+
+    .empty-state {
+      padding: 24px;
+      text-align: center;
+      color: var(--text-muted);
+    }
+
+    .load-more {
+      display: block;
+      margin: 12px auto;
+    }
+
+    /* Toasts */
+    .toast-container {
+      position: fixed;
+      top: 16px;
+      right: 16px;
+      width: 360px;
+      max-width: calc(100vw - 32px);
+      z-index: 1000;
+    }
+    .toast {
+      background: var(--toast-bg);
+      color: var(--toast-text);
+      padding: 10px 12px;
+      border-radius: 10px;
+      box-shadow: var(--shadow);
+      margin-bottom: 8px;
+    }
+    .toast .title {
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+    .toast button {
+      float: right;
+      background: transparent;
+      border: none;
+      color: var(--toast-text);
+      cursor: pointer;
+      font-weight: 700;
+    }
+
+    /* Banners (inline errors/info) */
+    .inline-banner {
+      border: 1px solid var(--border);
+      border-left: 4px solid var(--warning-text);
+      background: var(--warning-bg);
+      color: var(--warning-text);
+      padding: 10px 12px;
+      border-radius: 8px;
+      margin-top: 8px;
+    }
+    .inline-banner.error {
+      border-left-color: var(--error-text);
+      background: var(--error-bg);
+      color: var(--error-text);
+    }
+    .inline-banner.success {
+      border-left-color: var(--success-text);
+      background: var(--success-bg);
+      color: var(--success-text);
+    }
+
+    /* Modals */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.35);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 999;
+    }
+    .modal-overlay.active {
+      display: flex;
+    }
+    .modal {
+      background: var(--bg);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      box-shadow: var(--shadow);
+      width: 1020px;
+      max-width: calc(100vw - 32px);
+      max-height: calc(100vh - 32px);
+      box-sizing: border-box; /* include padding+border within width to prevent horizontal overflow */
+      overflow-y: auto;
+      overflow-x: hidden;
+      padding: 16px;
+    }
+    .modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 8px;
+      margin-bottom: 12px;
+    }
+    .modal-actions {
+      display: flex;
+      gap: 8px;
+      justify-content: flex-end;
+      margin-top: 12px;
+    }
+    .progress {
+      width: 100%;
+      height: 10px;
+      background: var(--bg-muted);
+      border-radius: 999px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+    }
+    .progress > div {
+      height: 100%;
+      background: var(--primary);
+      width: 0%;
+      transition: width 0.1s linear;
+    }
+
+    /* Dropzone */
+    .dropzone {
+      border: 2px dashed var(--border);
+      border-radius: 12px;
+      padding: 20px;
+      text-align: center;
+      color: var(--text-muted);
+    }
+    .dropzone.dragover {
+      border-color: var(--primary);
+      background: #eff6ff; /* blue-50 */
+      color: var(--text);
+    }
+
+    /* Accessibility helpers */
+    [hidden] { display: none !important; }
+
+    /* Bottom-right info "?" floating action button */
+    .info-fab {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      width: 44px;
+      height: 44px;
+      border-radius: 999px;
+      background: var(--primary);
+      color: var(--primary-contrast);
+      box-shadow: var(--shadow);
+      border: 1px solid transparent;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 22px;
+      cursor: pointer;
+      z-index: 1100; /* above the bottom banner which is 1000 */
+    }
+    .info-fab:hover {
+      filter: brightness(0.95);
+    }
+
+    /* Preformatted JSON block styling */
+    .code-block {
+      background: var(--bg-muted);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      max-height: 50vh;
+      overflow: auto;
+      box-sizing: border-box;
+    }
+
+    /* Fullscreen modal variant for Requirements */
+    .modal-fullscreen {
+      width: 90vw;
+      height: 90vh;
+      max-width: 90vw;
+      max-height: 90vh;
+      border-radius: 0;
+      padding: 16px;
+      box-sizing: border-box;
+    }
+
+  </style>
+  
+  <style>
+    .banner {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      width: 100%;
+      z-index: 1000;
+      transition: opacity 1s ease;
+    }
+    .banner--fade-out {
+      opacity: 0;
+    }
+  </style>
+  
+  <!-- Responsive/mobile-first and theming overrides -->
+  <style>
+    /* Key changes: mobile-first layout, fluid typography, responsive list reflow,
+       accessible theme toggle, dark theme variables, and overflow safety */
+
+    /* 1) Universal box-sizing to prevent overflow */
+    *, *::before, *::after { box-sizing: border-box; }
+
+    /* 2) Fluid typography and container padding */
+    html { -webkit-text-size-adjust: 100%; }
+    body { font-size: clamp(14px, 1.1vw + 0.5rem, 18px); }
+    .container { padding: clamp(12px, 2vw + 8px, 24px); }
+
+    /* 3) Prevent horizontal scroll */
+    html, body { max-width: 100%; overflow-x: hidden; }
+
+    /* 4) Responsive media */
+    img, video, object, embed, iframe { max-width: 100%; height: auto; }
+
+    /* 5) Touch target sizes (buttons >= 44x44) */
+    .btn { min-height: 44px; min-width: 44px; }
+
+    /* Increase checkbox size for touch */
+    input[type="checkbox"] { width: 24px; height: 24px; }
+
+    /* 6) Long text wrapping in object names */
+    .name-cell { min-width: 0; }
+    .name-cell a { overflow-wrap: anywhere; word-break: break-word; min-width: 0; }
+
+    /* 7) Search input responsiveness (allow shrinking on very narrow screens) */
+    .search-input { flex: 1 1 280px; width: auto; min-width: 0; }
+    @media (max-width: 700px) {
+      .search-input { flex: 1 1 160px; width: 100%; min-width: 0; }
+    }
+
+    /* 8) List reflow under 600px (stack Type/Size/Modified under Name) */
+    @media (max-width: 600px) {
+      .list-header { grid-template-columns: 40px 1fr; }
+      .list-header > div:nth-child(3),
+      .list-header > div:nth-child(4),
+      .list-header > div:nth-child(5) { display: none; }
+
+      .list-row {
+        grid-template-columns: 40px 1fr;
+        grid-auto-rows: auto;
+        align-items: start;
+      }
+      .list-row > div:nth-child(3),
+      .list-row > div:nth-child(4),
+      .list-row > div:nth-child(5) {
+        grid-column: 2 / -1;
+        justify-self: start;
+        text-align: left !important;
+        font-size: 0.9rem;
+        color: var(--text-muted);
+      }
+      .list-row > div:nth-child(3)::before { content: "Type: "; font-weight: 600; color: var(--text); }
+      .list-row > div:nth-child(4)::before { content: "Size: "; font-weight: 600; color: var(--text); }
+      .list-row > div:nth-child(5)::before { content: "Modified: "; font-weight: 600; color: var(--text); }
+    }
+
+    /* 9) Ensure rows have adequate height */
+    .list-row { min-height: 44px; }
+
+    /* 10) Minimal global header for theme toggle (connect screen) */
+    .top-header {
+      position: sticky; top: 0; z-index: 60;
+      display: flex; justify-content: flex-end; align-items: center;
+      gap: 8px; padding: 8px 16px;
+      border-bottom: 1px solid var(--border);
+      background: var(--bg);
+    }
+    .theme-toggle {
+      width: 44px; height: 44px; padding: 0; border-radius: 999px;
+      color: var(--text);
+      border-color: var(--border);
+    }
+    .theme-toggle:hover { background: var(--bg-muted); }
+
+    .project-title {
+      font-weight: 800;
+      font-size: 1.25rem;
+      color: var(--text);
+      margin-right: auto; /* push following controls to the right */
+      line-height: 1.2;
+    }
+    /* 11) Dark theme tokens (WCAG AA contrast mindful) */
+    :root[data-theme="dark"] {
+      --bg: #0b1220;
+      --bg-muted: #111827;
+      --border: #1f2937;
+      --text: #e5e7eb;
+      --text-muted: #9ca3af;
+      --primary: #3b82f6;
+      --primary-contrast: #0b1220;
+      --secondary-bg: #1f2937;
+      --secondary-text: #e5e7eb;
+      --destructive-bg: #ef4444;
+      --destructive-text: #0b1220;
+      --warning-bg: #2b2a19;
+      --warning-text: #f59e0b;
+      --error-bg: #2b1a1a;
+      --error-text: #fca5a5;
+      --success-bg: #0f2d25;
+      --success-text: #a7f3d0;
+      --toast-bg: #111827ee;
+      --toast-text: #f3f4f6;
+    }
+    /* Adjust list row hover and selected in dark */
+    :root[data-theme="dark"] .list-row:hover { background: #0f172a; }
+    :root[data-theme="dark"] .list-row.selected { background: #0b2e4a; }
+
+    /* 12) Honor system preference when no stored choice exists */
+    @media (prefers-color-scheme: dark) {
+      :root:not([data-theme="light"]):not([data-theme="dark"]) { color-scheme: dark; }
+    }
+    @media (prefers-color-scheme: light) {
+      :root:not([data-theme="light"]):not([data-theme="dark"]) { color-scheme: light; }
+    }
+    :root[data-theme="dark"] { color-scheme: dark; }
+    :root[data-theme="light"] { color-scheme: light; }
+  </style>
+
+  <!-- AWS SDK v2 pinned to exact version for determinism -->
+  <!-- Version: 2.1488.0 -->
+  <script src="https://sdk.amazonaws.com/js/aws-sdk-2.1488.0.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+  <script>
+    // Inject favicon as data URL to keep this a single-file app
+    (function () {
+      var svg = "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'><path fill='#7AA116' d='M42.416,22.305 C42.206,21.444 37.853,19.487 31.461,19.487 C25.069,19.487 20.717,21.444 20.507,22.305 L20.515,22.363 C20.858,23.228 25.154,24.754 31.461,24.754 C37.704,24.754 41.971,23.259 42.391,22.39 L42.397,22.338 L42.411,22.34 L42.416,22.305 Z M42.037,25.015 C39.16,26.343 34.353,26.754 31.461,26.754 C28.562,26.754 23.745,26.341 20.871,25.008 L21.901,32.656 C22.672,32.939 23.395,33.396 24.03,34.024 C24.396,34.386 24.717,34.799 24.989,35.26 C25.601,34.988 26.292,34.935 26.959,35.131 C28.064,35.459 28.84,36.371 29.114,37.631 C29.562,37.778 30.006,37.986 30.4,38.236 C31.768,39.101 32.461,40.234 32.461,41.604 C32.461,42.529 32.25,43.323 31.853,43.991 C33.695,43.965 35.516,43.771 37.015,43.425 C37.631,43.283 38.174,43.12 38.631,42.939 C39.336,42.66 39.631,42.413 39.709,42.313 C39.71,42.294 39.713,42.275 39.715,42.256 L40.785,34.305 C37.887,33.384 34.217,31.726 32.24,30.797 C32.021,30.923 31.77,31 31.5,31 C30.673,31 30,30.327 30,29.5 C30,28.673 30.673,28 31.5,28 C32.104,28 32.624,28.362 32.861,28.879 C34.43,29.619 38.141,31.324 41.057,32.29 L42.037,25.015 Z M30.461,41.604 C30.461,41.128 30.326,40.556 29.33,39.925 C28.938,39.677 28.457,39.487 28.042,39.417 C27.536,39.331 27.184,38.88 27.21,38.379 C27.143,37.676 26.84,37.181 26.391,37.049 C26.029,36.943 25.655,37.08 25.411,37.407 C25.189,37.701 24.821,37.846 24.462,37.795 C24.099,37.741 23.794,37.491 23.67,37.144 C23.425,36.461 23.073,35.889 22.625,35.447 C22.222,35.049 21.301,34.314 19.996,34.314 C19.537,34.314 19.031,34.405 18.483,34.633 C17.305,35.124 16.346,36.598 16.346,37.919 C16.346,38.071 16.354,38.22 16.373,38.366 C16.436,38.867 16.114,39.337 15.624,39.46 C14.82,39.662 13.862,40.211 13.862,41.681 C13.862,42.878 14.523,43.534 15.078,43.875 C15.212,43.957 15.368,44 15.531,44 L28.122,44.013 L28.127,44.013 C28.518,44.011 30.461,43.879 30.461,41.604 L30.461,41.604 Z M14.348,37.786 C14.406,35.702 15.834,33.571 17.714,32.787 C18.418,32.494 19.134,32.355 19.84,32.334 L18.543,22.709 L18.544,22.709 C18.543,22.708 18.543,22.707 18.543,22.705 L18.511,22.459 C18.505,22.416 18.502,22.373 18.502,22.329 C18.502,20.954 19.933,19.825 22.074,19 L22,19 L22,5 C22,4.449 21.552,4 21,4 L5,4 C4.448,4 4,4.449 4,5 L4,40 C4,40.552 4.448,41 5,41 L11.909,41 C12.111,39.523 12.98,38.38 14.348,37.786 L14.348,37.786 Z M15.529,46 C14.996,45.999 14.479,45.854 14.032,45.579 C13.401,45.192 12.444,44.389 12.049,43 L8,43 L8,46 L6,46 L6,43 L5,43 C3.346,43 2,41.655 2,40 L2,5 C2,3.346 3.346,2 5,2 L21,2 C22.654,2 24,3.346 24,5 L24,18.389 C26.234,17.807 28.887,17.487 31.461,17.487 C37.693,17.487 44.421,19.339 44.421,22.329 C44.421,22.373 44.418,22.416 44.412,22.459 L44.38,22.705 C44.375,22.747 44.367,22.788 44.356,22.829 C44.354,22.838 44.349,22.845 44.347,22.853 L43.312,30.529 C45.008,31.518 45.819,32.314 45.974,33.137 C46.058,33.586 45.941,34.025 45.648,34.374 C45.308,34.78 44.796,34.981 44.048,34.981 C43.674,34.981 43.233,34.925 42.733,34.825 L41.704,42.469 C41.663,43.418 40.877,44.202 39.366,44.799 C38.816,45.017 38.176,45.21 37.464,45.373 C35.716,45.778 33.584,46 31.461,46 L28.131,46 L15.529,46 Z M8,19 L19,19 L19,17 L8,17 L8,19 Z M8,24 L16,24 L16,22 L8,22 L8,24 Z M8,14 L19,14 L19,12 L8,12 L8,14 Z'/></svg>";
+      var link = document.createElement('link');
+      link.rel = 'icon';
+      link.type = 'image/svg+xml';
+      link.href = 'data:image/svg+xml,' + encodeURIComponent(svg);
+      document.head.appendChild(link);
+    })();
+  </script>
+</head>
+<body>
+  <!-- Minimal global header: theme toggle available before connect -->
+  <header class="top-header" aria-label="Global header">
+    <span class="project-title" id="projectTitle">DSP - SHARE</span>
+    <button id="signOutBtn" class="btn btn-ghost" title="Sign Out" aria-label="Sign Out" hidden>Sign Out</button>
+    <button id="themeToggleTop" class="btn btn-ghost theme-toggle" aria-pressed="false" aria-label="Theme: Light" title="Toggle theme" onclick="__toggleTheme()"><!-- icon set by JS --></button>
+  </header>
+
+  <div class="toast-container" aria-live="polite" aria-atomic="true"></div>
+  <button id="infoFab" class="info-fab" title="Requirements" aria-label="Requirements">?</button>
+
+  <div class="container">
+    <div class="banner" role="note" aria-label="First-use security guidance">
+      <strong>Security reminder:</strong> Use trusted machines and profiles only.
+    </div>
+
+    <!-- Connection Form -->
+    <section id="connect-card" class="card" aria-labelledby="connect-title">
+      <h2 id="connect-title">
+        S3 Explorer
+      </h2>
+      <div class="form-grid">
+        <div>
+          <label for="accessKeyId">Access Key ID</label>
+          <input type="text" id="accessKeyId" class="form-input" autocomplete="on" placeholder="AKI***" spellcheck="false" />
+          <div id="accessKeyIdError" class="error-text" hidden></div>
+        </div>
+        <div>
+          <label for="secretAccessKey">Secret Access Key</label>
+          <input type="password" id="secretAccessKey" class="form-input" placeholder="******" autocomplete="off" />
+          <div id="secretAccessKeyError" class="error-text" hidden></div>
+        </div>
+        <div>
+          <label for="region">Region</label>
+          <input type="text" id="region" class="form-input" placeholder="e.g., eu-west-1" autocomplete="on" spellcheck="false" />
+          <div id="regionError" class="error-text" hidden></div>
+        </div>
+        <div>
+          <label for="bucket">Bucket</label>
+          <input type="text" id="bucket" class="form-input" placeholder="e.g., my-s3-bucket" autocomplete="on" spellcheck="false" />
+          <div id="bucketError" class="error-text" hidden></div>
+        </div>
+      </div>
+      <div class="actions">
+        <button id="connectBtn" class="btn btn-primary" disabled>Connect</button>
+      </div>
+      <div id="connectGeneralError" class="inline-banner error" hidden role="alert"></div>
+    </section>
+
+    <!-- Main App Region (hidden until connected) -->
+    <section id="app" hidden>
+      <div class="header">
+        <nav class="breadcrumbs" aria-label="Breadcrumb">
+          <a href="#" data-prefix="" id="crumb-root">/</a>
+          <span class="crumb-sep" aria-hidden="true">›</span>
+          <span id="crumbs"></span>
+        </nav>
+        <div class="conn-indicator">
+          <span class="conn-item"><span id="connBucket"></span></span>
+          <span class="conn-sep">•</span>
+          <span class="conn-item"><span id="connRegion"></span></span>
+        </div>
+      </div>
+
+
+      <!-- Toolbar -->
+      <div class="toolbar" role="toolbar" aria-label="Primary actions">
+        <div class="toolbar-left">
+          <input id="filterInput" class="search-input" type="text" placeholder="Filter current page…" aria-label="Filter current page" />
+          <button id="clearFilterBtn" class="btn btn-ghost" disabled>Clear</button>
+        </div>
+        <div class="toolbar-right">
+          <button id="uploadBtn" class="btn btn-primary">
+            Upload
+          </button>
+          <button id="createDirBtn" class="btn btn-secondary">
+            <svg fill="#000000" width="24px" height="20px" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path fill-rule="evenodd"
+              d="M19,19 L19,17 L21,17 L21,19 L23,19 L23,21 L21,21 L21,23 L19,23 L19,21 L17,21 L17,19 L19,19 Z M3,9 L21,9 L21,7 L11.994646,6.99998567 C11.2764915,6.99614058 10.8086916,6.65990923 10.3058322,6.03654146 C10.2364281,5.95050497 10.0158737,5.66440398 9.98159778,5.62115916 C9.60702158,5.14856811 9.38424442,5 9,5 L3,5 L3,9 Z M21,11 L3,11 L3,19 L14,19 L14,21 L3,21 C1.8954305,21 1,20.1045695 1,19 L1,5 C1,3.8954305 1.8954305,3 3,3 L9,3 C10.1200023,3 10.832939,3.47545118 11.5489764,4.37885309 C11.5967547,4.43913352 11.8100999,4.71588275 11.8624831,4.78081945 C12.019726,4.97574495 12.0517795,4.99972956 12.0017863,5 L21,5 C22.1045695,5 23,5.8954305 23,7 L23,15 L21,15 L21,11 Z" />
+            </svg>
+          </button>
+          <button id="downloadBtn" class="btn btn-secondary" disabled>
+            <svg class="btn-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M8.5 7L8.5 14M8.5 14L11 11M8.5 14L6 11" stroke="#1C274C" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M15.5 7L15.5 14M15.5 14L18 11M15.5 14L13 11" stroke="#1C274C" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M18 17H12H6" stroke="#1C274C" stroke-width="1.5" stroke-linecap="round"/>
+              <path d="M22 12C22 16.714 22 19.0711 20.5355 20.5355C19.0711 22 16.714 22 12 22C7.28595 22 4.92893 22 3.46447 20.5355C2 19.0711 2 16.714 2 12C2 7.28595 2 4.92893 3.46447 3.46447C4.92893 2 7.28595 2 12 2C16.714 2 19.0711 2 20.5355 3.46447C21.5093 4.43821 21.8356 5.80655 21.9449 8" stroke="#1C274C" stroke-width="1.5" stroke-linecap="round"/>
+            </svg>
+          </button>
+          <button id="moveBtn" class="btn btn-secondary" disabled>
+            <svg fill="#000000" height="24px" width="24px" version="1.1" id="Capa_1" xmlns="http://www.w3.org/2000/svg"
+              xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 492.98 492.98" xml:space="preserve">
+              <g>
+                <path
+                  d="M227.193,167.404H70.18c-16.23,0-29.43,13.189-29.43,29.398v11.383H29.414C13.184,208.186,0,221.373,0,237.598v225.969
+            		c0,16.211,13.184,29.414,29.414,29.414h157.014c16.225,0,29.414-13.203,29.414-29.414V452.23h11.352
+            		c16.209,0,29.414-13.201,29.414-29.445V196.803C256.608,180.594,243.402,167.404,227.193,167.404z M186.428,208.186H63.039v-11.383
+            		c0-3.928,3.184-7.129,7.141-7.129h157.014c3.92,0,7.121,3.201,7.121,7.129v225.982c0,3.941-3.201,7.141-7.121,7.141h-11.352
+            		V237.598C215.842,221.373,202.652,208.186,186.428,208.186z M22.287,237.598c0-3.926,3.186-7.121,7.127-7.121h157.014
+            		c3.941,0,7.121,3.195,7.121,7.121v225.969c0,3.941-3.18,7.143-7.121,7.143H29.414c-3.941,0-7.127-3.201-7.127-7.143V237.598z" />
+                <path d="M66.623,293.863h63.152c6.139,0,11.141-5.016,11.141-11.139c0-6.164-5.002-11.164-11.141-11.164H66.623
+            		c-6.127,0-11.145,5-11.145,11.164C55.479,288.848,60.496,293.863,66.623,293.863z" />
+                <path d="M66.623,342.447h82.594c6.129,0,11.141-5.002,11.141-11.162c0-6.123-5.012-11.125-11.141-11.125H66.623
+            		c-6.127,0-11.145,5.002-11.145,11.125C55.479,337.445,60.496,342.447,66.623,342.447z" />
+                <path d="M66.623,390.992h82.594c6.129,0,11.141-4.984,11.141-11.123c0-6.16-5.012-11.164-11.141-11.164H66.623
+            		c-6.127,0-11.145,5.004-11.145,11.164C55.479,386.008,60.496,390.992,66.623,390.992z" />
+                <path d="M66.623,439.574h82.594c6.129,0,11.141-5.002,11.141-11.131c0-6.156-5.012-11.154-11.141-11.154H66.623
+            		c-6.127,0-11.145,4.998-11.145,11.154C55.479,434.572,60.496,439.574,66.623,439.574z" />
+                <path
+                  d="M482.045,0H303.383c-6.045,0-10.949,4.918-10.949,10.951v77.99h21.885V21.869h156.76v184.322h-29.973
+            		c-6.047,0-10.938,4.92-10.938,10.951v29.99h-115.85v-66.51h-21.885v77.445c0,6.016,4.904,10.934,10.949,10.934h137.723
+            		c2.891,0,5.66-1.125,7.734-3.199l40.924-40.908c2.09-2.076,3.217-4.822,3.217-7.752V10.951C492.98,4.918,488.076,0,482.045,0z" />
+                <path d="M332.488,177.377c0,4.002,2.385,7.559,6.084,9.066c1.188,0.482,2.459,0.74,3.746,0.74c2.654,0,5.131-0.998,6.961-2.861
+            		l42.598-42.598c1.848-1.854,2.879-4.328,2.879-6.93c0-2.574-1.061-5.148-2.893-6.98l-42.584-42.551
+            		c-2.732-2.752-7.074-3.639-10.723-2.156c-3.684,1.527-6.068,5.1-6.068,9.088v10.482h-66.99c-5.418,0-9.828,4.404-9.828,9.846
+            		v44.525c0,5.436,4.41,9.838,9.828,9.838h66.99V177.377z" />
+              </g>
+            </svg>
+          </button>
+          <button id="deleteBtn" class="btn btn-destructive" disabled>
+            <svg width="24px" height="24px" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path fill-rule="evenodd" clip-rule="evenodd"
+                d="M14.5 3L15.5 4H19V6H5V4H8.5L9.5 3H14.5ZM8 21C6.9 21 6 20.1 6 19V7H18V19C18 20.1 17.1 21 16 21H8ZM12 12.59L14.12 10.47L15.53 11.88L13.41 14L15.53 16.12L14.12 17.53L12 15.41L9.88 17.53L8.47 16.12L10.59 14L8.46 11.88L9.87 10.47L12 12.59Z"
+                fill="#000000" />
+            </svg>
+          </button>
+          <span id="selectionCount" class="helper" aria-live="polite"></span>
+        </div>
+      </div>
+
+      <!-- List View -->
+      <div class="list" role="table" aria-label="Objects and prefixes">
+        <div class="list-header" role="row">
+          <div role="columnheader"><input type="checkbox" id="selectAllPage"></div>
+          <div role="columnheader">Name</div>
+          <div role="columnheader" style="text-align:center">Type</div>
+          <div role="columnheader" style="text-align:left">Size</div>
+          <div role="columnheader">Last Modified</div>
+        </div>
+        <div id="rows" role="rowgroup"></div>
+        <div id="emptyState" class="empty-state" hidden>
+          This path is empty. Try Upload or Create Directory.
+        </div>
+      </div>
+
+      <button id="loadMoreBtn" class="btn btn-secondary load-more" hidden>Load More</button>
+      <div id="listErrorBanner" class="inline-banner error" hidden role="alert"></div>
+    </section>
+  </div>
+
+  <!-- Upload Modal -->
+  <div id="uploadModalOverlay" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="uploadModalTitle">
+    <div class="modal" id="uploadModal" tabindex="-1">
+      <div class="modal-header">
+        <h3 id="uploadModalTitle">Upload Files</h3>
+        <button class="btn btn-ghost" id="closeUploadModalBtn" aria-label="Close">✕</button>
+      </div>
+      <div class="dropzone" id="dropzone" tabindex="0" aria-label="Drag and drop files here or use the file picker">
+        Drag and drop files here, or click to select.
+      </div>
+      <input type="file" id="filePicker" multiple hidden />
+      <div class="actions">
+        <button class="btn btn-secondary" id="openFilePickerBtn">Choose Files</button>
+      </div>
+      <div id="uploadList"></div>
+      <div class="modal-actions">
+        <button class="btn btn-ghost" id="uploadCloseBtn">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Preview Modal -->
+  <div id="previewModalOverlay" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="previewModalTitle">
+    <div class="modal" id="previewModal" tabindex="-1">
+      <div class="modal-header">
+        <h3 id="previewModalTitle">Preview</h3>
+        <button class="btn btn-ghost" id="closePreviewModalBtn" aria-label="Close">✕</button>
+      </div>
+      <div id="previewContent"></div>
+      <div class="modal-actions">
+        <button class="btn btn-secondary" id="previewDownloadBtn">Download</button>
+        <button class="btn btn-ghost" id="previewCloseBtn">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Create Directory Dialog -->
+  <div id="createDirModalOverlay" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="createDirTitle">
+    <div class="modal" id="createDirModal" tabindex="-1">
+      <div class="modal-header">
+        <h3 id="createDirTitle">Create Directory</h3>
+        <button class="btn btn-ghost" id="closeCreateDirModalBtn" aria-label="Close">✕</button>
+      </div>
+      <label for="dirName">Directory name</label>
+      <input type="text" id="dirName" class="form-input" />
+      <div class="helper">Allowed characters: letters, numbers, dot, underscore, hyphen.</div>
+      <div id="dirNameError" class="error-text" hidden></div>
+      <div class="modal-actions">
+        <button class="btn btn-primary" id="createDirConfirmBtn">Create</button>
+        <button class="btn btn-ghost" id="createDirCancelBtn">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Confirm Delete Object Dialog -->
+  <div id="confirmDeleteModalOverlay" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="confirmDeleteTitle">
+    <div class="modal" id="confirmDeleteModal" tabindex="-1">
+      <div class="modal-header">
+        <h3 id="confirmDeleteTitle">Confirm Delete</h3>
+        <button class="btn btn-ghost" id="closeConfirmDeleteModalBtn" aria-label="Close">✕</button>
+      </div>
+      <div id="confirmDeleteBody"></div>
+      <div class="modal-actions">
+        <button class="btn btn-destructive" id="confirmDeleteBtn">Delete</button>
+        <button class="btn btn-ghost" id="confirmDeleteCancelBtn">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Delete Directory Modal -->
+  <div id="deleteDirModalOverlay" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="deleteDirTitle">
+    <div class="modal" id="deleteDirModal" tabindex="-1">
+      <div class="modal-header">
+        <h3 id="deleteDirTitle">Delete Directory</h3>
+        <button class="btn btn-ghost" id="closeDeleteDirModalBtn" aria-label="Close">✕</button>
+      </div>
+      <div id="deleteDirBody">
+        <p id="deleteDirCount">Preparing…</p>
+        <div id="deleteDirKeyList" class="card" hidden>
+          <h4>Objects to delete</h4>
+          <ul id="deleteDirKeyListItems" style="max-height: 240px; overflow: auto; margin: 0; padding-left: 20px;"></ul>
+        </div>
+        <div class="progress" aria-label="Delete progress"><div id="deleteDirProgressBar"></div></div>
+        <div id="deleteDirFailures" class="card" hidden>
+          <h4>Partial Failures</h4>
+          <ul id="deleteDirFailureList"></ul>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-destructive" id="deleteDirConfirmBtn">Delete All</button>
+        <button class="btn btn-secondary" id="deleteDirRetryBtn" hidden>Retry Failed</button>
+        <button class="btn btn-ghost" id="deleteDirCancelBtn">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Move Picker Modal -->
+  <div id="movePickerModalOverlay" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="movePickerTitle">
+    <div class="modal" id="movePickerModal" tabindex="-1">
+      <div class="modal-header">
+        <h3 id="movePickerTitle">Move Items</h3>
+        <button class="btn btn-ghost" id="closeMovePickerModalBtn" aria-label="Close">✕</button>
+      </div>
+      <div id="movePickerBreadcrumbs" class="breadcrumbs" aria-label="Move destination"></div>
+      <div id="movePickerPrefixList" class="list" role="table" aria-label="Destination prefixes"></div>
+      <div class="modal-actions">
+        <button class="btn btn-primary" id="movePickerSelectBtn">Select Destination</button>
+        <button class="btn btn-ghost" id="movePickerCancelBtn">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Move Confirm Modal -->
+  <div id="moveConfirmModalOverlay" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="moveConfirmTitle">
+    <div class="modal" id="moveConfirmModal" tabindex="-1">
+      <div class="modal-header">
+        <h3 id="moveConfirmTitle">Move</h3>
+        <button class="btn btn-ghost" id="closeMoveConfirmModalBtn" aria-label="Close">✕</button>
+      </div>
+      <div id="moveConfirmBody">
+        <p id="moveConfirmSummary">Preparing…</p>
+        <div id="moveConflictsCard" class="card" hidden>
+          <h4>Conflicts</h4>
+          <ul id="moveConflictList" style="max-height: 240px; overflow: auto; margin: 0; padding-left: 20px;"></ul>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-primary" id="moveConfirmOverwriteBtn">Overwrite and Move</button>
+        <button class="btn btn-secondary" id="moveConfirmBackBtn">Back</button>
+        <button class="btn btn-ghost" id="moveConfirmCancelBtn">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Move Progress Modal -->
+  <div id="moveProgressModalOverlay" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="moveProgressTitle">
+    <div class="modal" id="moveProgressModal" tabindex="-1">
+      <div class="modal-header">
+        <h3 id="moveProgressTitle">Move Progress</h3>
+        <button class="btn btn-ghost" id="closeMoveProgressModalBtn" aria-label="Close">✕</button>
+      </div>
+      <div id="moveProgressBody">
+        <p id="moveProgressCount">Preparing…</p>
+        <div class="progress" aria-label="Move progress"><div id="moveProgressBar"></div></div>
+        <div id="moveFailures" class="card" hidden>
+          <h4>Partial Failures</h4>
+          <ul id="moveFailureList"></ul>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-secondary" id="moveRetryFailedBtn" hidden>Retry Failed</button>
+        <button class="btn btn-ghost" id="moveProgressCancelBtn">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Download Progress Modal -->
+  <div id="downloadProgressModalOverlay" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="downloadProgressTitle">
+    <div class="modal" id="downloadProgressModal" tabindex="-1">
+      <div class="modal-header">
+        <h3 id="downloadProgressTitle">Download Progress</h3>
+        <button class="btn btn-ghost" id="closeDownloadProgressModalBtn" aria-label="Close">✕</button>
+      </div>
+      <div id="downloadProgressBody">
+        <p id="downloadProgressCount">Preparing…</p>
+        <div class="progress" aria-label="Download progress"><div id="downloadProgressBar"></div></div>
+        <div id="downloadFailures" class="card" hidden>
+          <h4>Partial Failures</h4>
+          <ul id="downloadFailureList"></ul>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-secondary" id="downloadRetryFailedBtn" hidden>Retry Failed</button>
+        <button class="btn btn-ghost" id="downloadProgressCancelBtn">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Info Requirements Modal -->
+  <div id="infoModalOverlay" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="infoModalTitle">
+    <div class="modal modal-fullscreen" id="infoModal" tabindex="-1">
+      <div class="modal-header">
+        <h3 id="infoModalTitle">Requirements</h3>
+        <button class="btn btn-ghost" id="closeInfoModalBtn" aria-label="Close">✕</button>
+      </div>
+      <div>
+        <p class="helper" style="margin:0 0 12px 0;">
+          To use this app, your IAM user must have permissions for ListBucket, GetObject, and PutObject on the target bucket, and the S3 bucket must have CORS enabled to allow browser access.
+        </p>
+
+        <div class="card">
+          <div style="display:flex;align-items:center;justify-content:space-between;">
+            <h4 style="margin:0;">IAM Policy</h4>
+            <button class="btn btn-secondary" id="copyIamPolicyBtn">Copy</button>
+          </div>
+          <pre class="code-block" id="iamPolicyBlock">{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Sid": "AllowListBucket",
+            "Effect": "Allow",
+            "Action": [
+                "s3:ListBucket",
+                "s3:GetObject",
+                "s3:PutObject"
+            ],
+            "Resource": "arn:aws:s3:::S3-BUCKET-NAME"
+        }
+    ]
+}</pre>
+        </div>
+
+        <div class="card">
+          <div style="display:flex;align-items:center;justify-content:space-between;">
+            <h4 style="margin:0;">CORS</h4>
+            <button class="btn btn-secondary" id="copyCorsBtn">Copy</button>
+          </div>
+          <pre class="code-block" id="corsBlock">[
+    {
+        "AllowedHeaders": [
+            "*"
+        ],
+        "AllowedMethods": [
+            "GET",
+            "PUT",
+            "POST",
+            "DELETE",
+            "HEAD"
+        ],
+        "AllowedOrigins": [
+            "*"
+        ],
+        "ExposeHeaders": [
+            "ETag"
+        ],
+        "MaxAgeSeconds": 3000
+    }
+]</pre>
+        </div>
+      </div>
+
+      <div class="modal-actions">
+        <button class="btn btn-ghost" id="infoCloseBtn">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Config values mapped from implementation plan
+    const Config = {
+      listPageSize: 1000,
+      previewTextMaxBytes: 262144, // 256 KiB
+      multipartThresholdBytes: 10485760, // 10 MiB
+      multipartPartSizeBytes: 8388608, // 8 MiB
+      multipartConcurrency: 4,
+      downloadConcurrency: 4,
+      retryBaseMs: 500,
+      retryMaxAttempts: 5,
+      deleteBatchSize: 1000,
+      allowedDirNamePattern: /^[A-Za-z0-9._-]+$/,
+      uiFocusOutlineColor: "#2563EB"
+    };
+
+    // State model (in-memory only)
+    const SessionState = {
+      accessKeyId: "",
+      secretAccessKey: "",
+      region: "",
+      bucket: "",
+      sessionWarnings: [],
+      connected: false
+    };
+
+    const NavigationState = {
+      currentPrefix: "",
+      breadcrumbs: [] // { label, prefix }
+    };
+
+    const ListingState = {
+      objects: [], // { key, size, lastModified }
+      prefixes: [], // { prefix }
+      nextContinuationToken: null,
+      isLoading: false,
+      lastRefreshedAt: null
+    };
+
+    const SelectionState = {
+      selectedKeys: new Set(),
+      selectedPrefixes: new Set(),
+      selectAllPage: false
+    };
+
+    const FilterState = {
+      text: "",
+      active: false
+    };
+
+    const OperationRegistry = {
+      uploads: new Map(), // id -> { fileName, key, totalBytes, uploadedBytes, status, parts[], abortController, uploadId, managedUpload }
+      deletes: new Map(), // id -> { type: "single"|"bulkPrefix", keysTotal, keysDeleted, keysFailed[], status }
+      listings: { status: "idle", pageCount: 0 },
+      moves: new Map() // id -> { keysTotal, keysMoved, keysFailed[], status }
+    };
+
+    const UIState = {
+      modals: {
+        upload: false,
+        preview: false,
+        createDir: false,
+        confirmDelete: false,
+        deleteDir: false,
+        info: false,
+        movePicker: false,
+        moveConfirm: false,
+        moveProgress: false,
+        downloadProgress: false
+      },
+      preview: { key: "", type: "unknown", truncated: false, content: null, blobUrl: null, contentType: "" },
+      toasts: [],
+      lastFocusedElementId: null
+    };
+
+    const MoveState = {
+      pickerPrefix: "",
+      destPrefix: "",
+      conflicts: [],
+      inProgress: false
+    };
+
+    // State for multi-download/zip process
+    const DownloadState = {
+      inProgress: false,
+      zip: null,           // JSZip instance
+      keysTotal: 0,
+      keysFetched: 0,
+      failures: []         // { key, code, msg }[]
+    };
+ 
+    // AWS S3 client
+    /** @type {AWS.S3 | null} */
+    let s3 = null;
+
+    // Utility helpers
+    const el = (id) => document.getElementById(id);
+
+    function escapeHTML(str) {
+      const div = document.createElement('div');
+      div.textContent = String(str);
+      return div.innerHTML;
+    }
+
+    function formatBytes(bytes) {
+      if (bytes === undefined || bytes === null) return "";
+      const units = ["B","KB","MB","GB","TB"];
+      let i = 0, n = bytes;
+      while (n >= 1024 && i < units.length - 1) { n /= 1024; i++; }
+      return `${n.toFixed(n >= 100 ? 0 : 1)} ${units[i]}`;
+    }
+
+    function showToast(title, message, opts = { autoDismissMs: 8000 }) {
+      const container = document.querySelector(".toast-container");
+      const toast = document.createElement("div");
+      toast.className = "toast";
+      const btn = document.createElement("button");
+      btn.textContent = "×";
+      btn.setAttribute("aria-label", "Dismiss");
+      btn.addEventListener("click", () => toast.remove());
+      const titleEl = document.createElement("div");
+      titleEl.className = "title";
+      titleEl.textContent = title;
+      const msg = document.createElement("div");
+      msg.innerHTML = escapeHTML(message);
+      toast.appendChild(btn);
+      toast.appendChild(titleEl);
+      toast.appendChild(msg);
+      container.appendChild(toast);
+      if (opts.autoDismissMs && opts.autoDismissMs > 0) {
+        setTimeout(() => toast.remove(), opts.autoDismissMs);
+      }
+    }
+
+    function setInlineBanner(id, text, type = "error") {
+      const banner = el(id);
+      banner.textContent = text;
+      banner.className = `inline-banner ${type}`;
+      banner.hidden = !text;
+    }
+
+    function clearInlineBanner(id) {
+      const banner = el(id);
+      banner.textContent = "";
+      banner.hidden = true;
+    }
+
+    // Theme helpers: accessible toggle, persisted in localStorage
+    function currentTheme() {
+      const t = document.documentElement.getAttribute('data-theme');
+      return t === 'dark' ? 'dark' : 'light';
+    }
+    function setTheme(theme, persist = true) {
+      const t = theme === 'dark' ? 'dark' : 'light';
+      document.documentElement.setAttribute('data-theme', t);
+      if (persist) {
+        try { localStorage.setItem('theme', t); } catch {}
+      }
+      updateThemeToggleUI();
+    }
+    function toggleTheme() {
+      setTheme(currentTheme() === 'dark' ? 'light' : 'dark');
+    }
+    function updateThemeToggleUI() {
+      const isDark = currentTheme() === 'dark';
+      const label = 'Theme: ' + (isDark ? 'Dark' : 'Light');
+      ['themeToggleTop','themeToggleApp'].forEach(function(id) {
+        var btn = el(id);
+        if (!btn) return;
+        btn.setAttribute('aria-pressed', String(isDark));
+        btn.setAttribute('aria-label', label);
+        btn.innerHTML = isDark ? getSunIconSVG() : getMoonIconSVG();
+      });
+    }
+    function getSunIconSVG() {
+      return '<svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M6.76 4.84l-1.8-1.79-1.41 1.41 1.79 1.8 1.42-1.42zm10.45 12.73l1.79 1.8 1.41-1.41-1.8-1.79-1.4 1.4zM12 4V1h0v3zm0 22v-3 3zM4 12H1h3zm22 0h-3 3zM6.76 19.16l-1.42 1.42-1.79-1.8 1.41-1.41 1.8 1.79zM19.16 6.76l1.8-1.79-1.41-1.41-1.79 1.8 1.4 1.4zM12 6a6 6 0 100 12 6 6 0 000-12z"/></svg>';
+    }
+    function getMoonIconSVG() {
+      return '<svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M21 12.79A9 9 0 1111.21 3a7 7 0 109.79 9.79z"/></svg>';
+    }
+    // Expose a global for inline handlers without touching existing bindEvents
+    window.__toggleTheme = toggleTheme;
+
+    // Modal controls and focus management
+    function openModal(overlayId, modalFocusId) {
+      const overlay = el(overlayId);
+      UIState.lastFocusedElementId = document.activeElement?.id || null;
+      overlay.classList.add("active");
+      overlay.addEventListener("click", overlayClickToCloseHandler);
+      document.addEventListener("keydown", escToCloseHandler);
+      trapFocus(overlay);
+      const focusEl = modalFocusId ? el(modalFocusId) : overlay.querySelector(".modal");
+      if (focusEl) focusEl.focus();
+    }
+
+    function closeModal(overlayId) {
+      const overlay = el(overlayId);
+      overlay.classList.remove("active");
+      overlay.removeEventListener("click", overlayClickToCloseHandler);
+      document.removeEventListener("keydown", escToCloseHandler);
+      untrapFocus(overlay);
+      const last = UIState.lastFocusedElementId ? el(UIState.lastFocusedElementId) : null;
+      if (last) last.focus();
+    }
+
+    function overlayClickToCloseHandler(e) {
+      if (e.target.classList.contains("modal-overlay")) {
+        // Find which overlay is clicked
+        if (e.target.id === "uploadModalOverlay") { UIState.modals.upload = false; closeModal("uploadModalOverlay"); }
+        if (e.target.id === "previewModalOverlay") { UIState.modals.preview = false; cleanupPreview(); closeModal("previewModalOverlay"); }
+        if (e.target.id === "createDirModalOverlay") { UIState.modals.createDir = false; closeModal("createDirModalOverlay"); }
+        if (e.target.id === "confirmDeleteModalOverlay") { UIState.modals.confirmDelete = false; closeModal("confirmDeleteModalOverlay"); }
+        if (e.target.id === "deleteDirModalOverlay") { UIState.modals.deleteDir = false; closeModal("deleteDirModalOverlay"); }
+        if (e.target.id === "infoModalOverlay") { UIState.modals.info = false; closeModal("infoModalOverlay"); }
+        if (e.target.id === "movePickerModalOverlay") { UIState.modals.movePicker = false; closeModal("movePickerModalOverlay"); }
+        if (e.target.id === "moveConfirmModalOverlay") { UIState.modals.moveConfirm = false; closeModal("moveConfirmModalOverlay"); }
+        if (e.target.id === "moveProgressModalOverlay") { UIState.modals.moveProgress = false; closeModal("moveProgressModalOverlay"); }
+      }
+    }
+
+    function escToCloseHandler(e) {
+      if (e.key === "Escape") {
+        if (UIState.modals.upload) { UIState.modals.upload = false; closeModal("uploadModalOverlay"); }
+        else if (UIState.modals.preview) { UIState.modals.preview = false; cleanupPreview(); closeModal("previewModalOverlay"); }
+        else if (UIState.modals.createDir) { UIState.modals.createDir = false; closeModal("createDirModalOverlay"); }
+        else if (UIState.modals.confirmDelete) { UIState.modals.confirmDelete = false; closeModal("confirmDeleteModalOverlay"); }
+        else if (UIState.modals.deleteDir) { UIState.modals.deleteDir = false; closeModal("deleteDirModalOverlay"); }
+        else if (UIState.modals.movePicker) { UIState.modals.movePicker = false; closeModal("movePickerModalOverlay"); }
+        else if (UIState.modals.moveConfirm) { UIState.modals.moveConfirm = false; closeModal("moveConfirmModalOverlay"); }
+        else if (UIState.modals.moveProgress) { UIState.modals.moveProgress = false; closeModal("moveProgressModalOverlay"); }
+        else if (UIState.modals.info) { UIState.modals.info = false; closeModal("infoModalOverlay"); }
+      }
+    }
+
+    let focusTrapHandler = null;
+    function trapFocus(container) {
+      focusTrapHandler = (e) => {
+        if (e.key !== "Tab") return;
+        const focusable = container.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+        const list = Array.from(focusable).filter(el => !el.hasAttribute("disabled") && el.offsetParent !== null);
+        if (list.length === 0) return;
+        const first = list[0];
+        const last = list[list.length - 1];
+        if (e.shiftKey && document.activeElement === first) { last.focus(); e.preventDefault(); }
+        else if (!e.shiftKey && document.activeElement === last) { first.focus(); e.preventDefault(); }
+      };
+      container.addEventListener("keydown", focusTrapHandler, true);
+    }
+    function untrapFocus(container) {
+      if (focusTrapHandler) container.removeEventListener("keydown", focusTrapHandler, true);
+      focusTrapHandler = null;
+    }
+
+    // Credentials validation
+    function validateConnectForm(showErrors = false) {
+      const accessKeyId = el("accessKeyId").value.trim();
+      const secretAccessKey = el("secretAccessKey").value.trim();
+      const region = el("region").value.trim();
+      const bucket = el("bucket").value.trim();
+ 
+      let ok = true;
+ 
+      const show = (id, msg, shouldShow) => {
+        const e = el(id);
+        e.textContent = shouldShow ? msg : "";
+        e.hidden = !shouldShow;
+      };
+ 
+      // Required fields: keep ok logic, only show message when showErrors=true
+      if (!accessKeyId) {
+        ok = false;
+        show("accessKeyIdError", "Access Key ID is required.", showErrors);
+      } else {
+        show("accessKeyIdError", "", false);
+      }
+ 
+      if (!secretAccessKey) {
+        ok = false;
+        show("secretAccessKeyError", "Secret Access Key is required.", showErrors);
+      } else {
+        show("secretAccessKeyError", "", false);
+      }
+ 
+      // Region format: show if invalid AND (user typed something) OR (on submit)
+      const regionValid = /^[a-z]{2}-[a-z]+-\d$/.test(region);
+      if (!regionValid) {
+        ok = false;
+        const should = showErrors || !!region;
+        show("regionError", "Region format looks invalid (e.g., eu-central-1).", should);
+      } else {
+        show("regionError", "", false);
+      }
+ 
+      // Bucket format: show if invalid AND (user typed something) OR (on submit)
+      const bucketValid = /^[a-z0-9.-]{3,63}$/.test(bucket);
+      if (!bucketValid) {
+        ok = false;
+        const should = showErrors || !!bucket;
+        show("bucketError", "Bucket format looks invalid.", should);
+      } else {
+        show("bucketError", "", false);
+      }
+ 
+      el("connectBtn").disabled = !ok;
+ 
+      return { accessKeyId, secretAccessKey, region, bucket, ok };
+    }
+
+    function renderBreadcrumbs() {
+          const wrapper = el("crumbs");
+          wrapper.innerHTML = "";
+          const prefix = NavigationState.currentPrefix;
+          const parts = prefix ? prefix.split("/").filter(Boolean) : [];
+          let acc = "";
+          parts.forEach((p, idx) => {
+            acc += p + "/";
+            const a = document.createElement("a");
+            a.href = "#";
+            a.dataset.prefix = acc;
+            a.textContent = p;
+            // Capture the value for this specific crumb to avoid the closure capturing the final 'acc'
+            const targetPrefix = acc;
+            a.addEventListener("click", (e) => {
+              e.preventDefault();
+              navigateToPrefix(targetPrefix);
+            });
+            // Indicate the current location for accessibility
+            if (idx === parts.length - 1) {
+              a.setAttribute("aria-current", "page");
+            }
+            wrapper.appendChild(a);
+            if (idx < parts.length - 1) {
+              const sep = document.createElement("span");
+              sep.className = "crumb-sep";
+              sep.textContent = "›";
+              sep.setAttribute("aria-hidden", "true");
+              wrapper.appendChild(sep);
+            }
+          });
+        }
+
+    function navigateToPrefix(prefix) {
+      NavigationState.currentPrefix = prefix || "";
+      SelectionState.selectedKeys.clear();
+      SelectionState.selectedPrefixes.clear();
+      SelectionState.selectAllPage = false;
+      el("selectAllPage").checked = false;
+      filterClear();
+      listPrefix(NavigationState.currentPrefix, null, true);
+    }
+
+    // Listing
+    async function listPrefix(prefix, continuationToken = null, reset = false) {
+      if (!s3) return;
+      try {
+        ListingState.isLoading = true;
+        OperationRegistry.listings.status = "running";
+
+        const params = {
+          Bucket: SessionState.bucket,
+          Prefix: prefix || "",
+          Delimiter: "/",
+          MaxKeys: Config.listPageSize
+        };
+        if (continuationToken) params.ContinuationToken = continuationToken;
+
+        clearInlineBanner("listErrorBanner");
+        const data = await s3.listObjectsV2(params).promise();
+
+        const newPrefixes = (data.CommonPrefixes || []).map(cp => ({ prefix: cp.Prefix }));
+        const newObjects = (data.Contents || [])
+          .filter(o => o.Key !== (prefix || ""))
+          .map(o => ({
+            key: o.Key,
+            size: o.Size,
+            lastModified: o.LastModified ? new Date(o.LastModified).toLocaleString() : ""
+          }));
+
+        if (reset) {
+          ListingState.prefixes = [];
+          ListingState.objects = [];
+          el("rows").innerHTML = "";
+          // Insert parent ".." row when inside a directory
+          if (NavigationState.currentPrefix) {
+            el("rows").appendChild(renderParentRow());
+          }
+        }
+
+        // Append with incremental rendering
+        let idx = 0;
+        const chunkSize = 100;
+        const totalItems = newPrefixes.length + newObjects.length;
+        const rowsContainer = el("rows");
+
+        function renderChunk() {
+          const end = Math.min(idx + chunkSize, totalItems);
+          for (let i = idx; i < end; i++) {
+            if (i < newPrefixes.length) {
+              const p = newPrefixes[i];
+              ListingState.prefixes.push(p);
+              rowsContainer.appendChild(renderPrefixRow(p));
+            } else {
+              const o = newObjects[i - newPrefixes.length];
+              ListingState.objects.push(o);
+              rowsContainer.appendChild(renderObjectRow(o));
+            }
+          }
+          idx = end;
+          if (idx < totalItems) {
+            requestAnimationFrame(renderChunk);
+          } else {
+            finalizeListing();
+          }
+        }
+
+        function finalizeListing() {
+          ListingState.nextContinuationToken = data.IsTruncated ? data.NextContinuationToken : null;
+          el("loadMoreBtn").hidden = !ListingState.nextContinuationToken;
+          el("emptyState").hidden = (ListingState.prefixes.length + ListingState.objects.length) !== 0;
+          OperationRegistry.listings.status = "idle";
+          ListingState.isLoading = false;
+          ListingState.lastRefreshedAt = Date.now();
+          renderBreadcrumbs();
+        }
+
+        renderChunk();
+      } catch (err) {
+        ListingState.isLoading = false;
+        OperationRegistry.listings.status = "idle";
+        categorizeAndSurfaceError(err, "listErrorBanner");
+      }
+    }
+
+    function renderParentRow() {
+      const row = document.createElement("div");
+      row.className = "list-row";
+      row.setAttribute("role", "row");
+      row.dataset.parentRow = "true";
+
+      const c0 = document.createElement("div");
+      c0.setAttribute("role", "cell");
+      // intentionally no checkbox for parent row
+
+      const c1 = document.createElement("div");
+      c1.setAttribute("role", "cell");
+      c1.className = "name-cell";
+      const icon = document.createElement("span");
+      icon.className = "folder-icon";
+      const link = document.createElement("a");
+      link.href = "#";
+      link.textContent = "..";
+      link.addEventListener("click", (e) => {
+        e.preventDefault();
+        const cur = NavigationState.currentPrefix || "";
+        if (!cur) return;
+        const withoutTrailing = cur.endsWith("/") ? cur.slice(0, -1) : cur;
+        const idx = withoutTrailing.lastIndexOf("/");
+        const parent = idx >= 0 ? withoutTrailing.slice(0, idx + 1) : "";
+        navigateToPrefix(parent);
+      });
+      c1.appendChild(icon);
+      c1.appendChild(link);
+
+      const c2 = document.createElement("div"); c2.setAttribute("role", "cell"); c2.style.textAlign = "center";
+      const badge = document.createElement("span"); badge.className = "type-badge"; badge.textContent = "folder";
+      c2.appendChild(badge);
+
+      const c3 = document.createElement("div"); c3.setAttribute("role", "cell"); c3.style.textAlign = "left"; c3.textContent = "-";
+      const c4 = document.createElement("div"); c4.setAttribute("role", "cell"); c4.textContent = "-";
+
+      row.appendChild(c0); row.appendChild(c1); row.appendChild(c2); row.appendChild(c3); row.appendChild(c4);
+      return row;
+    }
+    
+    function renderPrefixRow(p) {
+      const row = document.createElement("div");
+      row.className = "list-row";
+      row.setAttribute("role", "row");
+      const c0 = document.createElement("div");
+      c0.setAttribute("role", "cell");
+      const checkbox = document.createElement("input");
+      checkbox.type = "checkbox";
+      checkbox.addEventListener("change", () => {
+        if (checkbox.checked) SelectionState.selectedPrefixes.add(p.prefix);
+        else SelectionState.selectedPrefixes.delete(p.prefix);
+        updateSelectionUI();
+      });
+      c0.appendChild(checkbox);
+
+      const c1 = document.createElement("div");
+      c1.setAttribute("role", "cell");
+      c1.className = "name-cell";
+      const icon = document.createElement("span");
+      icon.className = "folder-icon";
+      const link = document.createElement("a");
+      link.href = "#";
+      link.textContent = p.prefix.substring(NavigationState.currentPrefix.length) || p.prefix;
+      link.addEventListener("click", (e) => {
+        e.preventDefault();
+        navigateToPrefix(p.prefix);
+      });
+      c1.appendChild(icon);
+      c1.appendChild(link);
+
+      const c2 = document.createElement("div"); c2.setAttribute("role", "cell"); c2.style.textAlign = "center";
+      const badge = document.createElement("span"); badge.className = "type-badge"; badge.textContent = "folder";
+      c2.appendChild(badge);
+
+      const c3 = document.createElement("div"); c3.setAttribute("role", "cell"); c3.style.textAlign = "left"; c3.textContent = "-";
+      const c4 = document.createElement("div"); c4.setAttribute("role", "cell"); c4.textContent = "-";
+
+      row.appendChild(c0); row.appendChild(c1); row.appendChild(c2); row.appendChild(c3); row.appendChild(c4);
+      return row;
+    }
+
+    function renderObjectRow(o) {
+      const row = document.createElement("div");
+      row.className = "list-row";
+      row.setAttribute("role", "row");
+      const c0 = document.createElement("div");
+      c0.setAttribute("role", "cell");
+      const checkbox = document.createElement("input");
+      checkbox.type = "checkbox";
+      checkbox.addEventListener("change", () => {
+        if (checkbox.checked) SelectionState.selectedKeys.add(o.key);
+        else SelectionState.selectedKeys.delete(o.key);
+        updateSelectionUI();
+      });
+      c0.appendChild(checkbox);
+
+      const c1 = document.createElement("div");
+      c1.setAttribute("role", "cell");
+      c1.className = "name-cell";
+      const link = document.createElement("a");
+      link.href = "#";
+      link.textContent = o.key.substring(NavigationState.currentPrefix.length) || o.key;
+      link.addEventListener("click", (e) => {
+        e.preventDefault();
+        openPreviewModal(o.key);
+      });
+      c1.appendChild(link);
+
+      const c2 = document.createElement("div"); c2.setAttribute("role", "cell"); c2.style.textAlign = "center";
+      const badge = document.createElement("span"); badge.className = "type-badge"; badge.textContent = "object";
+      c2.appendChild(badge);
+
+      const c3 = document.createElement("div"); c3.setAttribute("role", "cell"); c3.style.textAlign = "left"; c3.textContent = formatBytes(o.size);
+      const c4 = document.createElement("div"); c4.setAttribute("role", "cell"); c4.textContent = o.lastModified || "";
+
+      row.appendChild(c0); row.appendChild(c1); row.appendChild(c2); row.appendChild(c3); row.appendChild(c4);
+      return row;
+    }
+
+    // Derive full key or prefix from a rendered row
+    function computeRowFullPath(row) {
+      try {
+        if (row?.dataset?.parentRow === "true") return null;
+        const nameCell = row.children[1];
+        const link = nameCell?.querySelector("a");
+        if (!link) return null;
+        const rel = link.textContent || "";
+        return (NavigationState.currentPrefix || "") + rel;
+      } catch {
+        return null;
+      }
+    }
+
+    function updateSelectionUI() {
+      const selectedCount = SelectionState.selectedKeys.size + SelectionState.selectedPrefixes.size;
+
+      // Enable/disable action buttons based on selection
+      el("deleteBtn").disabled = selectedCount === 0;
+      const moveBtnEl = el("moveBtn");
+      if (moveBtnEl) {
+        moveBtnEl.disabled = !(SelectionState.selectedKeys.size > 0 && SelectionState.selectedPrefixes.size === 0);
+      }
+      const downloadBtnEl = el("downloadBtn");
+      if (downloadBtnEl) {
+        downloadBtnEl.disabled = selectedCount === 0;
+      }
+      el("selectionCount").textContent = selectedCount ? `${selectedCount}` : "";
+
+      // Reconcile per-row checkbox states from SelectionState (source of truth)
+      const rowsAll = el("rows").children;
+      for (const row of rowsAll) {
+        const cb = row.querySelector("input[type='checkbox']");
+        if (!cb) continue;
+        const typeCell = row.children[2];
+        const isFolder = (typeCell.querySelector(".type-badge")?.textContent || "") === "folder";
+        const fullPath = computeRowFullPath(row);
+        const shouldBeChecked = !!fullPath && (isFolder ? SelectionState.selectedPrefixes.has(fullPath) : SelectionState.selectedKeys.has(fullPath));
+        if (cb.checked !== shouldBeChecked) {
+          cb.checked = shouldBeChecked;
+        }
+      }
+
+      // Keep header checkbox state (checked/indeterminate) in sync with VISIBLE row selections
+      const header = el("selectAllPage");
+      if (header) {
+        const rows = el("rows").children;
+        let total = 0, checked = 0;
+        for (const row of rows) {
+          if (row.style.display === "none") continue; // only visible rows count toward header state
+          const cb = row.querySelector("input[type='checkbox']");
+          if (!cb) continue;
+          total++;
+          if (cb.checked) checked++;
+        }
+        header.indeterminate = checked > 0 && checked < total;
+        header.checked = total > 0 && checked === total;
+        SelectionState.selectAllPage = header.checked;
+      }
+    }
+
+    // Filtering
+    function applyFilterLocal() {
+      const text = FilterState.text.toLowerCase();
+      const rows = el("rows").children;
+      for (const row of rows) {
+        // Always keep parent ".." row visible
+        if (row.dataset && row.dataset.parentRow === "true") {
+          row.style.display = "";
+          continue;
+        }
+        const nameCell = row.children[1];
+        const nameText = (nameCell?.innerText || "").toLowerCase();
+        const matches = nameText.includes(text);
+        row.style.display = matches ? "" : "none";
+      }
+    }
+    function filterClear() {
+      FilterState.text = "";
+      FilterState.active = false;
+      el("filterInput").value = "";
+      el("clearFilterBtn").disabled = true;
+      const rows = el("rows").children;
+      for (const row of rows) row.style.display = "";
+    }
+
+    async function applyBeginsWithListing() {
+      const text = FilterState.text;
+      const prefix = NavigationState.currentPrefix + text;
+      await listPrefix(prefix, null, true);
+      showToast("Filtered Listing", `Listed items beginning with "${escapeHTML(text)}" under ${escapeHTML(NavigationState.currentPrefix)}`);
+    }
+
+    // Connect and validation
+    async function connect() {
+      const { accessKeyId, secretAccessKey, region, bucket, ok } = validateConnectForm(true);
+      if (!ok) return;
+
+      clearInlineBanner("connectGeneralError");
+
+      try {
+        AWS.config.update({
+          accessKeyId,
+          secretAccessKey,
+          region
+        }); // [AWS.config.update()]
+        AWS.config.correctClockSkew = true;
+
+        s3 = new AWS.S3({ signatureVersion: "v4" }); // [AWS.S3()]
+
+        // Minimal list to validate
+        const params = { Bucket: bucket, Delimiter: "/", MaxKeys: 1 };
+        await s3.listObjectsV2(params).promise();
+
+        // Connected
+        SessionState.accessKeyId = accessKeyId;
+        SessionState.secretAccessKey = secretAccessKey;
+        SessionState.region = region;
+        SessionState.bucket = bucket;
+        SessionState.connected = true;
+
+        el("connect-card").hidden = true;
+        el("app").hidden = false;
+        const infoFabEl = el("infoFab"); if (infoFabEl) infoFabEl.hidden = true;
+
+        el("connBucket").textContent = bucket;
+        el("connRegion").textContent = region;
+        const signOutBtn = el("signOutBtn"); if (signOutBtn) signOutBtn.hidden = false;
+
+        navigateToPrefix("");
+        showToast("Connected", `Connected to bucket ${escapeHTML(bucket)} in region ${escapeHTML(region)}.`);
+      } catch (err) {
+        categorizeAndSurfaceError(err, "connectGeneralError");
+      }
+    }
+
+    function categorizeAndSurfaceError(err, bannerId) {
+      const status = err && (err.statusCode || err.status);
+      const code = err && err.code;
+      let category = "Unknown error";
+      if (status === 403 && code === "SignatureDoesNotMatch") category = "Authentication failed (signature mismatch).";
+      else if (status === 403 && code === "AccessDenied") category = "Insufficient permissions (AccessDenied).";
+      else if (status === 404 && code === "NoSuchBucket") category = "NoSuchBucket (bucket not found).";
+      else if (status === 301 || code === "AuthorizationHeaderMalformed" || code === "PermanentRedirect") category = "Region mismatch (bucket is in a different region).";
+      else if (code === "NetworkingError" || code === "TimeoutError") category = "Network interruption or timeout.";
+      const msg = `${category}${err && err.message ? " — " + err.message : ""}`;
+      setInlineBanner(bannerId, msg, "error");
+      showToast("Error", msg, { autoDismissMs: 12000 });
+    }
+
+    // Upload flows
+    function openUploadModal() {
+      UIState.modals.upload = true;
+      renderUploadList();
+      openModal("uploadModalOverlay", "uploadModal");
+    }
+    function closeUploadModal() {
+      UIState.modals.upload = false;
+      closeModal("uploadModalOverlay");
+    }
+
+    function renderUploadList() {
+      const cont = el("uploadList");
+      cont.innerHTML = "";
+      for (const [id, op] of OperationRegistry.uploads.entries()) {
+        const item = document.createElement("div");
+        item.className = "card";
+        item.innerHTML = `
+          <div style="display:flex;align-items:center;justify-content:space-between;">
+            <div>
+              <strong>${escapeHTML(op.fileName)}</strong>
+              <div class="helper">Key: ${escapeHTML(op.key)}</div>
+            </div>
+            <div>
+              <button class="btn btn-ghost" data-id="${id}" data-action="abort">Cancel</button>
+            </div>
+          </div>
+          <div class="progress" aria-label="Upload progress"><div style="width:${Math.floor(100 * (op.uploadedBytes / Math.max(op.totalBytes,1)))}%"></div></div>
+          <div class="helper">Status: ${escapeHTML(op.status)}</div>
+        `;
+        cont.appendChild(item);
+      }
+
+      cont.querySelectorAll("button[data-action='abort']").forEach(btn => {
+        btn.addEventListener("click", () => {
+          const id = btn.getAttribute("data-id");
+          const op = OperationRegistry.uploads.get(id);
+          if (op && op.managedUpload) {
+            try {
+              op.managedUpload.abort();
+              op.status = "aborted";
+              showToast("Upload Aborted", `${escapeHTML(op.fileName)}`);
+            } catch {}
+          }
+          renderUploadList();
+        });
+      });
+    }
+
+    function addUpload(file) {
+      const key = NavigationState.currentPrefix + file.name;
+      const exists = ListingState.objects.some(o => o.key === key);
+      const proceed = exists ? confirm(`Overwrite existing object?\n${key}`) : true;
+      if (!proceed) return;
+
+      const id = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      const entry = {
+        fileName: file.name,
+        key,
+        totalBytes: file.size,
+        uploadedBytes: 0,
+        status: "queued",
+        parts: [],
+        abortController: null,
+        uploadId: null,
+        managedUpload: null
+      };
+      OperationRegistry.uploads.set(id, entry);
+      renderUploadList();
+
+      if (file.size < Config.multipartThresholdBytes) {
+        // Simple managed upload with queueSize=1
+        const params = { Bucket: SessionState.bucket, Key: key, Body: file };
+        const mu = s3.upload(params, { queueSize: 1 });
+        entry.managedUpload = mu;
+        entry.status = "running";
+        mu.on("httpUploadProgress", (evt) => {
+          entry.uploadedBytes = evt.loaded || entry.uploadedBytes;
+          renderUploadList();
+        });
+        mu.promise().then(() => {
+          entry.status = "completed";
+          showToast("Upload Complete", `${escapeHTML(file.name)} uploaded.`);
+          // cleanup and refresh listing
+          OperationRegistry.uploads.delete(id);
+          renderUploadList();
+          refreshListingNonBlocking();
+        }).catch((err) => {
+          entry.status = "failed";
+          showToast("Upload Failed", `${escapeHTML(file.name)} — ${escapeHTML(err.message || String(err))}`);
+          renderUploadList();
+        });
+      } else {
+        // Multipart via managed upload with configured partSize and queueSize
+        const params = { Bucket: SessionState.bucket, Key: key, Body: file };
+        const mu = s3.upload(params, { partSize: Config.multipartPartSizeBytes, queueSize: Config.multipartConcurrency });
+        entry.managedUpload = mu;
+        entry.status = "running";
+        mu.on("httpUploadProgress", (evt) => {
+          entry.uploadedBytes = evt.loaded || entry.uploadedBytes;
+          renderUploadList();
+        });
+        mu.promise().then(() => {
+          entry.status = "completed";
+          showToast("Upload Complete", `${escapeHTML(file.name)} uploaded.`);
+          OperationRegistry.uploads.delete(id);
+          renderUploadList();
+          refreshListingNonBlocking();
+        }).catch((err) => {
+          entry.status = "failed";
+          showToast("Upload Failed", `${escapeHTML(file.name)} — ${escapeHTML(err.message || String(err))}`);
+          renderUploadList();
+        });
+      }
+    }
+
+    function refreshListingNonBlocking() {
+      listPrefix(NavigationState.currentPrefix, null, true);
+    }
+
+    // Preview and Download
+    async function openPreviewModal(key) {
+      UIState.preview = { key, type: "unknown", truncated: false, content: null, blobUrl: null, contentType: "" };
+      UIState.modals.preview = true;
+      el("previewContent").innerHTML = "Loading preview…";
+      openModal("previewModalOverlay", "previewModal");
+
+      try {
+        // Determine basic type by extension (fallback to getObject ContentType)
+        const ext = (key.split(".").pop() || "").toLowerCase();
+        const isImageExt = ["png","jpg","jpeg","gif","webp","bmp","svg"].includes(ext);
+        const isTextExt = ["txt","md","json","csv","log","xml","ini","yaml","yml"].includes(ext);
+
+        if (isImageExt) {
+          const data = await s3.getObject({ Bucket: SessionState.bucket, Key: key }).promise();
+          const isSvg = ext === "svg";
+          const forcedType = isSvg ? "image/svg+xml" : (data.ContentType || "application/octet-stream");
+          const blob = toBlob(data.Body, forcedType);
+          const url = URL.createObjectURL(blob);
+          UIState.preview.type = "image";
+          UIState.preview.blobUrl = url;
+          UIState.preview.contentType = forcedType;
+          if (isSvg) {
+            el("previewContent").innerHTML = `<object type="image/svg+xml" data="${url}" style="max-width:100%;height:auto;border:1px solid var(--border);border-radius:8px;"><div class="inline-banner error">SVG preview failed to render. You can still download.</div></object>`;
+          } else {
+            el("previewContent").innerHTML = `<img src="${url}" alt="Image preview" style="max-width:100%;height:auto;border:1px solid var(--border);border-radius:8px;" />`;
+          }
+        } else {
+          // Text preview: fetch full object (no Range) and truncate client-side to avoid signature issues
+          const data = await s3.getObject({ Bucket: SessionState.bucket, Key: key }).promise(); // [S3.getObject()]
+          UIState.preview.type = "text";
+          UIState.preview.contentType = data.ContentType || "";
+          const blob = toBlob(data.Body, "text/plain");
+          const fullSize = blob.size || 0;
+          const truncatedBlob = fullSize > Config.previewTextMaxBytes ? blob.slice(0, Config.previewTextMaxBytes) : blob;
+          const text = await truncatedBlob.text();
+          UIState.preview.content = text;
+          const truncated = fullSize > Config.previewTextMaxBytes;
+          UIState.preview.truncated = truncated;
+          el("previewContent").innerHTML = `<pre style="white-space:pre-wrap;word-wrap:break-word;border:1px solid var(--border);border-radius:8px;padding:12px;max-height:60vh;overflow:auto;">${escapeHTML(text)}${truncated ? "\n\n[Preview truncated]" : ""}</pre>`;
+        }
+        // Hook up download
+        el("previewDownloadBtn").onclick = () => downloadKey(key);
+      } catch (err) {
+        el("previewContent").innerHTML = `<div class="inline-banner error">Preview failed — ${escapeHTML(err.message || String(err))}. You can still download.</div>`;
+        el("previewDownloadBtn").onclick = () => downloadKey(key);
+      }
+    }
+
+    function cleanupPreview() {
+      if (UIState.preview.blobUrl) {
+        try { URL.revokeObjectURL(UIState.preview.blobUrl); } catch {}
+      }
+      UIState.preview = { key: "", type: "unknown", truncated: false, content: null, blobUrl: null, contentType: "" };
+    }
+
+    async function downloadKey(key) {
+      try {
+        const data = await s3.getObject({ Bucket: SessionState.bucket, Key: key }).promise();
+        const blob = toBlob(data.Body, data.ContentType || "application/octet-stream");
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = key.split("/").pop() || "download";
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 2000);
+        showToast("Download", `Started download for ${escapeHTML(key)}.`);
+
+        // Auto-deselect after successful single-object download
+        SelectionState.selectedKeys.clear();
+        SelectionState.selectedPrefixes.clear();
+        SelectionState.selectAllPage = false;
+        const selectAll = el("selectAllPage");
+        if (selectAll) {
+          selectAll.checked = false;
+          selectAll.indeterminate = false;
+        }
+        updateSelectionUI();
+      } catch (err) {
+        showToast("Download Failed", `${escapeHTML(err.message || String(err))}`, { autoDismissMs: 12000 });
+      }
+    }
+
+    function toBlob(body, contentType) {
+      if (!body) return new Blob([], { type: contentType });
+      // AWS SDK v2 browser may deliver ArrayBuffer, Blob, TypedArray
+      try {
+        if (body instanceof Blob) return body;
+      } catch {}
+      try {
+        if (body.buffer) return new Blob([body.buffer], { type: contentType });
+      } catch {}
+      try {
+        if (body instanceof ArrayBuffer) return new Blob([body], { type: contentType });
+      } catch {}
+      try {
+        return new Blob([body], { type: contentType });
+      } catch {
+        return new Blob([], { type: contentType });
+      }
+    }
+
+    async function bodyToText(body) {
+      const blob = toBlob(body, "text/plain");
+      return await blob.text();
+    }
+
+    async function bodyToArrayBuffer(body) {
+      const blob = toBlob(body, "application/octet-stream");
+      return await blob.arrayBuffer();
+    }
+ 
+    async function copyTextById(id) {
+      const block = el(id);
+      const text = block ? (block.textContent || "") : "";
+      if (!text) throw new Error("Nothing to copy");
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(text);
+      } else {
+        const ta = document.createElement("textarea");
+        ta.value = text;
+        ta.style.position = "fixed";
+        ta.style.opacity = "0";
+        document.body.appendChild(ta);
+        ta.focus();
+        ta.select();
+        const ok = document.execCommand ? document.execCommand("copy") : false;
+        ta.remove();
+        if (!ok) throw new Error("Clipboard unavailable");
+      }
+    }
+    // Create directory
+    async function createDirectory(name) {
+      const trimmed = (name || "").trim();
+      const valid = Config.allowedDirNamePattern.test(trimmed);
+      if (!valid) {
+        el("dirNameError").textContent = "Invalid name. Allowed: letters, numbers, dot, underscore, hyphen.";
+        el("dirNameError").hidden = false;
+        return;
+      }
+      el("dirNameError").hidden = true;
+
+      const key = NavigationState.currentPrefix + trimmed + "/";
+      try {
+        await s3.putObject({ Bucket: SessionState.bucket, Key: key, Body: new Uint8Array(0), ContentLength: 0 }).promise();
+        showToast("Directory Created", `${escapeHTML(key)}`);
+        closeCreateDirModal();
+        refreshListingNonBlocking();
+      } catch (err) {
+        el("dirNameError").textContent = err.message || String(err);
+        el("dirNameError").hidden = false;
+      }
+    }
+
+    function openCreateDirModal() {
+      UIState.modals.createDir = true;
+      el("dirName").value = "";
+      el("dirNameError").hidden = true;
+      openModal("createDirModalOverlay", "createDirModal");
+    }
+    function closeCreateDirModal() {
+      UIState.modals.createDir = false;
+      closeModal("createDirModalOverlay");
+    }
+
+    // Delete object or directory
+    function openConfirmDeleteModal() {
+      const keys = Array.from(SelectionState.selectedKeys);
+      const prefixes = Array.from(SelectionState.selectedPrefixes);
+      if (keys.length === 0 && prefixes.length === 0) return;
+
+      UIState.modals.confirmDelete = true;
+      const body = el("confirmDeleteBody");
+      if (keys.length && !prefixes.length) {
+        body.innerHTML = `<p>Delete the following object(s)? This action is irreversible.</p><ul>${keys.map(k => `<li>${escapeHTML(k)}</li>`).join("")}</ul>`;
+        el("confirmDeleteBtn").onclick = async () => {
+          await deleteObjects(keys);
+          UIState.modals.confirmDelete = false;
+          closeModal("confirmDeleteModalOverlay");
+        };
+      } else if (!keys.length && prefixes.length) {
+        body.innerHTML = `<p>Delete the following directory-like prefix(es)? This removes all objects under each prefix. Irreversible.</p><ul>${prefixes.map(p => `<li>${escapeHTML(p)}</li>`).join("")}</ul>`;
+        el("confirmDeleteBtn").onclick = () => {
+          UIState.modals.confirmDelete = false;
+          closeModal("confirmDeleteModalOverlay");
+          // Open bulk delete modal for first selected prefix (one at a time)
+          if (prefixes.length) openDeleteDirModal(prefixes[0]);
+        };
+      } else {
+        body.innerHTML = `<p>Mixed selection detected. Please delete objects and directories separately.</p>`;
+        el("confirmDeleteBtn").onclick = () => {
+          UIState.modals.confirmDelete = false;
+          closeModal("confirmDeleteModalOverlay");
+        };
+      }
+
+      openModal("confirmDeleteModalOverlay", "confirmDeleteModal");
+    }
+
+    async function deleteObjects(keys) {
+      try {
+        for (const key of keys) {
+          await s3.deleteObject({ Bucket: SessionState.bucket, Key: key }).promise();
+        }
+        showToast("Delete", `Deleted ${keys.length} object(s).`);
+        // Reset selection state after any delete operation
+        SelectionState.selectedKeys.clear();
+        SelectionState.selectedPrefixes.clear();
+        SelectionState.selectAllPage = false;
+        const selectAll = el("selectAllPage");
+        if (selectAll) selectAll.checked = false;
+        updateSelectionUI();
+        refreshListingNonBlocking();
+      } catch (err) {
+        showToast("Delete Failed", `${escapeHTML(err.message || String(err))}`, { autoDismissMs: 12000 });
+      }
+    }
+
+    async function openDeleteDirModal(prefix) {
+      UIState.modals.deleteDir = true;
+      el("deleteDirCount").textContent = "Preparing…";
+      el("deleteDirFailures").hidden = true;
+      el("deleteDirFailureList").innerHTML = "";
+      el("deleteDirRetryBtn").hidden = true;
+      el("deleteDirConfirmBtn").disabled = false;
+
+      // Reset the object list section
+      const listCont = el("deleteDirKeyList");
+      const listItems = el("deleteDirKeyListItems");
+      if (listCont && listItems) {
+        listCont.hidden = true;
+        listItems.innerHTML = "";
+      }
+
+      openModal("deleteDirModalOverlay", "deleteDirModal");
+
+      // Count objects under prefix
+      try {
+        const keys = await enumerateKeysUnderPrefix(prefix);
+        el("deleteDirCount").textContent = `Objects to delete under "${prefix}": ${keys.length}`;
+
+        // Render keys list
+        if (listCont && listItems) {
+          if (keys.length > 0) {
+            const frag = document.createDocumentFragment();
+            keys.forEach(k => {
+              const li = document.createElement("li");
+              li.textContent = k;
+              frag.appendChild(li);
+            });
+            listItems.innerHTML = "";
+            listItems.appendChild(frag);
+            listCont.hidden = false;
+          } else {
+            listCont.hidden = true;
+            listItems.innerHTML = "";
+          }
+        }
+
+        el("deleteDirConfirmBtn").onclick = async () => {
+          await bulkDeleteKeys(keys);
+        };
+        el("deleteDirRetryBtn").onclick = async () => {
+          const failed = Array.from(el("deleteDirFailureList").querySelectorAll("li")).map(li => li.dataset.key);
+          await bulkDeleteKeys(failed);
+        };
+      } catch (err) {
+        el("deleteDirCount").textContent = `Failed to enumerate keys — ${err.message || String(err)}`;
+        el("deleteDirConfirmBtn").disabled = true;
+      }
+    }
+
+    async function enumerateKeysUnderPrefix(prefix) {
+      const keys = [];
+      let token = null;
+      do {
+        const params = {
+          Bucket: SessionState.bucket,
+          Prefix: prefix,
+          MaxKeys: 1000
+        };
+        if (token) params.ContinuationToken = token;
+        const data = await s3.listObjectsV2(params).promise();
+        (data.Contents || []).forEach(o => keys.push(o.Key));
+        token = data.IsTruncated ? data.NextContinuationToken : null;
+      } while (token);
+      return keys;
+    }
+
+    async function bulkDeleteKeys(keys) {
+      const total = keys.length;
+      let deleted = 0;
+      const failures = [];
+      const bar = el("deleteDirProgressBar");
+      const failureList = el("deleteDirFailureList");
+
+      for (let i = 0; i < keys.length; i += Config.deleteBatchSize) {
+        const batch = keys.slice(i, i + Config.deleteBatchSize);
+        try {
+          const resp = await s3.deleteObjects({
+            Bucket: SessionState.bucket,
+            Delete: { Objects: batch.map(k => ({ Key: k })) }
+          }).promise();
+
+          deleted += (resp.Deleted || []).length;
+          const errs = resp.Errors || [];
+          errs.forEach(e => failures.push({ key: e.Key, code: e.Code, msg: e.Message || "" }));
+
+          bar.style.width = `${Math.floor(100 * (deleted / total))}%`;
+        } catch (err) {
+          // Entire batch failed
+          batch.forEach(k => failures.push({ key: k, code: "BatchError", msg: err.message || String(err) }));
+        }
+      }
+
+      if (failures.length) {
+        el("deleteDirFailures").hidden = false;
+        failureList.innerHTML = failures.map(f => `<li data-key="${escapeHTML(f.key)}">${escapeHTML(f.key)} — ${escapeHTML(f.code)} ${escapeHTML(f.msg)}</li>`).join("");
+        el("deleteDirRetryBtn").hidden = false;
+        showToast("Partial Failures", `${failures.length} item(s) failed to delete. Review and retry.`, { autoDismissMs: 15000 });
+      } else {
+        showToast("Delete Complete", `Deleted ${total} item(s).`);
+        UIState.modals.deleteDir = false;
+        closeModal("deleteDirModalOverlay");
+      }
+
+      // Reset selection state after directory delete (regardless of failures)
+      SelectionState.selectedKeys.clear();
+      SelectionState.selectedPrefixes.clear();
+      SelectionState.selectAllPage = false;
+      const selectAll = el("selectAllPage");
+      if (selectAll) selectAll.checked = false;
+
+      updateSelectionUI();
+      refreshListingNonBlocking();
+    }
+
+    // Move helpers and flows
+    function getBaseName(key) {
+      const parts = String(key).split("/");
+      return parts[parts.length - 1] || "";
+    }
+
+    async function listPrefixesOnly(prefix) {
+      if (!s3) return [];
+      const params = {
+        Bucket: SessionState.bucket,
+        Prefix: prefix || "",
+        Delimiter: "/",
+        MaxKeys: Config.listPageSize
+      };
+      const data = await s3.listObjectsV2(params).promise();
+      return (data.CommonPrefixes || []).map(cp => cp.Prefix);
+    }
+
+    function renderMovePickerBreadcrumbs() {
+      const wrapper = el("movePickerBreadcrumbs");
+      if (!wrapper) return;
+      wrapper.innerHTML = "";
+      const prefix = MoveState.pickerPrefix || "";
+      const parts = prefix ? prefix.split("/").filter(Boolean) : [];
+      let acc = "";
+      const root = document.createElement("a");
+      root.href = "#";
+      root.dataset.prefix = "";
+      root.textContent = "/";
+      root.id = "move-crumb-root";
+      root.addEventListener("click", (e) => { e.preventDefault(); MoveState.pickerPrefix = ""; renderMovePicker(); });
+      wrapper.appendChild(root);
+      if (parts.length) {
+        const sep = document.createElement("span");
+        sep.className = "crumb-sep";
+        sep.textContent = "›";
+        sep.setAttribute("aria-hidden", "true");
+        wrapper.appendChild(sep);
+      }
+      parts.forEach((p, idx) => {
+        acc += p + "/";
+        const a = document.createElement("a");
+        a.href = "#";
+        a.dataset.prefix = acc;
+        a.textContent = p;
+        const targetPrefix = acc;
+        a.addEventListener("click", (e) => { e.preventDefault(); MoveState.pickerPrefix = targetPrefix; renderMovePicker(); });
+        if (idx === parts.length - 1) a.setAttribute("aria-current", "page");
+        wrapper.appendChild(a);
+        if (idx < parts.length - 1) {
+          const sep2 = document.createElement("span");
+          sep2.className = "crumb-sep";
+          sep2.textContent = "›";
+          sep2.setAttribute("aria-hidden", "true");
+          wrapper.appendChild(sep2);
+        }
+      });
+    }
+
+    async function renderMovePicker() {
+      renderMovePickerBreadcrumbs();
+      const listCont = el("movePickerPrefixList");
+      if (!listCont) return;
+      listCont.innerHTML = "";
+
+      const tableHeader = document.createElement("div");
+      tableHeader.className = "list-header";
+      tableHeader.setAttribute("role", "row");
+      tableHeader.innerHTML = `<div role="columnheader"></div><div role="columnheader">Name</div><div role="columnheader" style="text-align:center">Type</div><div role="columnheader" style="text-align:left">-</div><div role="columnheader">-</div>`;
+      listCont.appendChild(tableHeader);
+
+      const rowsGroup = document.createElement("div");
+      rowsGroup.id = "movePickerRows";
+      rowsGroup.setAttribute("role", "rowgroup");
+      listCont.appendChild(rowsGroup);
+
+      // Parent ".."
+      if (MoveState.pickerPrefix) {
+        const row = document.createElement("div");
+        row.className = "list-row";
+        row.setAttribute("role", "row");
+        row.dataset.parentRow = "true";
+
+        const c0 = document.createElement("div"); c0.setAttribute("role", "cell");
+        const c1 = document.createElement("div"); c1.setAttribute("role", "cell"); c1.className = "name-cell";
+        const icon = document.createElement("span"); icon.className = "folder-icon";
+        const link = document.createElement("a"); link.href = "#"; link.textContent = "..";
+        link.addEventListener("click", (e) => {
+          e.preventDefault();
+          const cur = MoveState.pickerPrefix || "";
+          const withoutTrailing = cur.endsWith("/") ? cur.slice(0, -1) : cur;
+          const idx = withoutTrailing.lastIndexOf("/");
+          const parent = idx >= 0 ? withoutTrailing.slice(0, idx + 1) : "";
+          MoveState.pickerPrefix = parent;
+          renderMovePicker();
+        });
+        c1.appendChild(icon); c1.appendChild(link);
+        const c2 = document.createElement("div"); c2.setAttribute("role", "cell"); c2.style.textAlign = "center"; const badge = document.createElement("span"); badge.className = "type-badge"; badge.textContent = "folder"; c2.appendChild(badge);
+        const c3 = document.createElement("div"); c3.setAttribute("role", "cell"); c3.style.textAlign = "left"; c3.textContent = "-";
+        const c4 = document.createElement("div"); c4.setAttribute("role", "cell"); c4.textContent = "-";
+
+        row.appendChild(c0); row.appendChild(c1); row.appendChild(c2); row.appendChild(c3); row.appendChild(c4);
+        rowsGroup.appendChild(row);
+      }
+
+      try {
+        const prefixes = await listPrefixesOnly(MoveState.pickerPrefix || "");
+        prefixes.forEach(p => {
+          const row = document.createElement("div");
+          row.className = "list-row";
+          row.setAttribute("role", "row");
+
+          const c0 = document.createElement("div"); c0.setAttribute("role", "cell");
+          const checkbox = document.createElement("input"); checkbox.type = "checkbox"; checkbox.disabled = true; c0.appendChild(checkbox);
+
+          const c1 = document.createElement("div"); c1.setAttribute("role", "cell"); c1.className = "name-cell";
+          const icon = document.createElement("span"); icon.className = "folder-icon";
+          const link = document.createElement("a"); link.href = "#"; link.textContent = p.substring((MoveState.pickerPrefix || "").length) || p;
+          link.addEventListener("click", (e) => { e.preventDefault(); MoveState.pickerPrefix = p; renderMovePicker(); });
+          c1.appendChild(icon); c1.appendChild(link);
+
+          const c2 = document.createElement("div"); c2.setAttribute("role", "cell"); c2.style.textAlign = "center";
+          const badge = document.createElement("span"); badge.className = "type-badge"; badge.textContent = "folder"; c2.appendChild(badge);
+
+          const c3 = document.createElement("div"); c3.setAttribute("role", "cell"); c3.style.textAlign = "left"; c3.textContent = "-";
+          const c4 = document.createElement("div"); c4.setAttribute("role", "cell"); c4.textContent = "-";
+
+          row.appendChild(c0); row.appendChild(c1); row.appendChild(c2); row.appendChild(c3); row.appendChild(c4);
+          rowsGroup.appendChild(row);
+        });
+        // Destination is the current pickerPrefix
+        MoveState.destPrefix = MoveState.pickerPrefix || "";
+        const selectBtn = el("movePickerSelectBtn");
+        if (selectBtn) selectBtn.disabled = false;
+      } catch (err) {
+        setInlineBanner("listErrorBanner", err.message || String(err), "error");
+        const selectBtn = el("movePickerSelectBtn");
+        if (selectBtn) selectBtn.disabled = true;
+      }
+    }
+
+    function openMovePickerModal() {
+      const hasPrefixSelected = SelectionState.selectedPrefixes.size > 0;
+      const hasKeySelected = SelectionState.selectedKeys.size > 0;
+      if (!hasKeySelected || hasPrefixSelected) {
+        showToast("Move Not Supported", "Select one or more objects only. Moving directory prefixes is not supported.");
+        return;
+      }
+      UIState.modals.movePicker = true;
+      MoveState.pickerPrefix = NavigationState.currentPrefix || "";
+      MoveState.destPrefix = MoveState.pickerPrefix;
+      MoveState.conflicts = [];
+      renderMovePicker();
+      openModal("movePickerModalOverlay", "movePickerModal");
+    }
+
+    async function preflightMoveConflicts(keys, destPrefix) {
+      const conflicts = [];
+      for (const key of keys) {
+        const destKey = String(destPrefix || "") + getBaseName(key);
+        try {
+          await s3.headObject({ Bucket: SessionState.bucket, Key: destKey }).promise();
+          conflicts.push(destKey);
+        } catch (err) {
+          const status = err && (err.statusCode || err.status);
+          const code = err && err.code;
+          // Treat NotFound as no conflict; other errors ignored for preflight
+          if (status === 404 || code === "NotFound" || code === "NoSuchKey") {
+            // no conflict
+          }
+        }
+      }
+      return conflicts;
+    }
+
+    function openMoveConfirmModal(keys, destPrefix, conflicts) {
+      UIState.modals.moveConfirm = true;
+      const summary = el("moveConfirmSummary");
+      const card = el("moveConflictsCard");
+      const list = el("moveConflictList");
+      if (summary) {
+        const destLabel = destPrefix && destPrefix.length ? destPrefix : "/";
+        summary.innerHTML = `
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+            <span class="type-badge" title="Selected items">${keys.length} item${keys.length === 1 ? "" : "s"}</span>
+            <span class="crumb-sep" aria-hidden="true">›</span>
+            <span class="helper">Destination</span>
+            <span class="type-badge" title="Destination prefix">${escapeHTML(destLabel)}</span>
+          </div>
+        `;
+      }
+      if (conflicts && conflicts.length) {
+        if (list) list.innerHTML = conflicts.map(k => `<li>${escapeHTML(k)}</li>`).join("");
+        if (card) card.hidden = false;
+      } else {
+        if (card) card.hidden = true;
+        if (list) list.innerHTML = "";
+      }
+      openModal("moveConfirmModalOverlay", "moveConfirmModal");
+    }
+
+    async function performBulkMove(keys, destPrefix) {
+      UIState.modals.moveConfirm = false;
+      closeModal("moveConfirmModalOverlay");
+
+      UIState.modals.moveProgress = true;
+      const countEl = el("moveProgressCount");
+      const bar = el("moveProgressBar");
+      const failuresCard = el("moveFailures");
+      const failureList = el("moveFailureList");
+      const retryBtn = el("moveRetryFailedBtn");
+
+      if (failuresCard) failuresCard.hidden = true;
+      if (failureList) failureList.innerHTML = "";
+      if (retryBtn) retryBtn.hidden = true;
+      if (bar) bar.style.width = "0%";
+      if (countEl) countEl.textContent = `Moving 0 of ${keys.length}…`;
+
+      openModal("moveProgressModalOverlay", "moveProgressModal");
+
+      let moved = 0;
+      const failures = [];
+
+      for (const key of keys) {
+        const destKey = String(destPrefix || "") + getBaseName(key);
+        try {
+          // Skip if dest equals src (no-op)
+          if (destKey === key) {
+            moved++;
+            if (bar) bar.style.width = `${Math.floor(100 * (moved / keys.length))}%`;
+            if (countEl) countEl.textContent = `Moving ${moved} of ${keys.length}…`;
+            continue;
+          }
+          await s3.copyObject({
+            Bucket: SessionState.bucket,
+            Key: destKey,
+            CopySource: encodeURIComponent(`${SessionState.bucket}/${key}`)
+          }).promise();
+          await s3.deleteObject({ Bucket: SessionState.bucket, Key: key }).promise();
+          moved++;
+          if (bar) bar.style.width = `${Math.floor(100 * (moved / keys.length))}%`;
+          if (countEl) countEl.textContent = `Moving ${moved} of ${keys.length}…`;
+        } catch (err) {
+          failures.push({ key, destKey, code: err?.code || "Error", msg: err?.message || String(err) });
+          if (countEl) countEl.textContent = `Moving ${moved} of ${keys.length}…`;
+        }
+      }
+
+      if (failures.length) {
+        if (failuresCard) failuresCard.hidden = false;
+        if (failureList) {
+          failureList.innerHTML = failures.map(f => `<li data-key="${escapeHTML(f.key)}" data-dest="${escapeHTML(f.destKey)}">${escapeHTML(f.key)} → ${escapeHTML(f.destKey)} — ${escapeHTML(f.code)} ${escapeHTML(f.msg)}</li>`).join("");
+        }
+        if (retryBtn) retryBtn.hidden = false;
+        showToast("Partial Failures", `${failures.length} item(s) failed to move. Review and retry.`, { autoDismissMs: 15000 });
+      } else {
+        showToast("Move Complete", `Moved ${keys.length} item(s).`);
+        UIState.modals.moveProgress = false;
+        closeModal("moveProgressModalOverlay");
+      }
+
+      // Reset selection after move
+      SelectionState.selectedKeys.clear();
+      SelectionState.selectedPrefixes.clear();
+      SelectionState.selectAllPage = false;
+      const selectAll = el("selectAllPage");
+      if (selectAll) selectAll.checked = false;
+
+      updateSelectionUI();
+      refreshListingNonBlocking();
+    }
+
+    // Download flows
+    function formatArchiveName() {
+      const d = new Date();
+      const pad = (n) => String(n).padStart(2, "0");
+      const ts = `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`;
+      return `s3-download-${ts}.zip`;
+    }
+
+    function openDownloadProgressModal() {
+      UIState.modals.downloadProgress = true;
+      const countEl = el("downloadProgressCount");
+      const bar = el("downloadProgressBar");
+      const failureCard = el("downloadFailures");
+      const failureList = el("downloadFailureList");
+      if (countEl) countEl.textContent = "Preparing…";
+      if (bar) bar.style.width = "0%";
+      if (failureCard) failureCard.hidden = true;
+      if (failureList) failureList.innerHTML = "";
+      const retryBtn = el("downloadRetryFailedBtn");
+      if (retryBtn) retryBtn.hidden = true;
+      openModal("downloadProgressModalOverlay", "downloadProgressModal");
+    }
+
+    function closeDownloadProgressModal() {
+      UIState.modals.downloadProgress = false;
+      closeModal("downloadProgressModalOverlay");
+    }
+
+    async function gatherSelectionKeys() {
+      const keys = new Set(Array.from(SelectionState.selectedKeys));
+      const prefixes = Array.from(SelectionState.selectedPrefixes);
+      for (const p of prefixes) {
+        try {
+          const under = await enumerateKeysUnderPrefix(p);
+          under.forEach(k => keys.add(k));
+        } catch (err) {
+          showToast("Enumeration Failed", `${escapeHTML(err.message || String(err))}`);
+        }
+      }
+      return Array.from(keys);
+    }
+
+    async function startMultiDownload() {
+      if (!s3) return;
+      try {
+        const hasPrefixes = SelectionState.selectedPrefixes.size > 0;
+        const selectedKeys = Array.from(SelectionState.selectedKeys);
+        if (selectedKeys.length === 1 && !hasPrefixes) {
+          await downloadKey(selectedKeys[0]);
+          return;
+        }
+        const keys = await gatherSelectionKeys();
+        if (keys.length === 0) {
+          showToast("Download", "Nothing to download.");
+          return;
+        }
+        if (keys.length === 1) {
+          await downloadKey(keys[0]);
+          return;
+        }
+        await buildZipAndDownload(keys);
+      } catch (err) {
+        showToast("Download Failed", `${escapeHTML(err.message || String(err))}`, { autoDismissMs: 12000 });
+      }
+    }
+
+    async function buildZipAndDownload(keys) {
+      openDownloadProgressModal();
+      DownloadState.inProgress = true;
+      DownloadState.zip = new JSZip();
+      DownloadState.keysTotal = keys.length;
+      DownloadState.keysFetched = 0;
+      DownloadState.failures = [];
+      const bar = el("downloadProgressBar");
+      const countEl = el("downloadProgressCount");
+      const failureCard = el("downloadFailures");
+      const failureList = el("downloadFailureList");
+      const concurrency = Config.downloadConcurrency || 4;
+      let index = 0;
+      async function worker() {
+        while (true) {
+          const i = index++;
+          if (i >= keys.length) return;
+          const key = keys[i];
+          try {
+            const data = await s3.getObject({ Bucket: SessionState.bucket, Key: key }).promise();
+            const ab = await bodyToArrayBuffer(data.Body);
+            DownloadState.zip.file(key, ab);
+          } catch (err) {
+            DownloadState.failures.push({ key, code: err?.code || "Error", msg: err?.message || String(err) });
+          } finally {
+            DownloadState.keysFetched++;
+            if (bar) bar.style.width = `${Math.floor(100 * (DownloadState.keysFetched / DownloadState.keysTotal))}%`;
+            if (countEl) countEl.textContent = `Fetched ${DownloadState.keysFetched} of ${DownloadState.keysTotal}…`;
+          }
+        }
+      }
+      await Promise.all(Array.from({ length: Math.min(concurrency, keys.length) }, () => worker()));
+      if (DownloadState.failures.length) {
+        if (failureCard) failureCard.hidden = false;
+        if (failureList) {
+          failureList.innerHTML = DownloadState.failures
+            .map(f => `<li data-key="${escapeHTML(f.key)}">${escapeHTML(f.key)} — ${escapeHTML(f.code)} ${escapeHTML(f.msg)}</li>`)
+            .join("");
+        }
+        const retryBtn = el("downloadRetryFailedBtn");
+        if (retryBtn) retryBtn.hidden = false;
+        return;
+      }
+      await finalizeZipAndDownload();
+    }
+
+    async function retryFailedDownloads(failedKeys) {
+      const bar = el("downloadProgressBar");
+      const countEl = el("downloadProgressCount");
+      const failureCard = el("downloadFailures");
+      const failureList = el("downloadFailureList");
+      const retryBtn = el("downloadRetryFailedBtn");
+      if (retryBtn) retryBtn.hidden = true;
+      if (failureCard) failureCard.hidden = true;
+      if (failureList) failureList.innerHTML = "";
+      const concurrency = Config.downloadConcurrency || 4;
+      DownloadState.failures = [];
+      let index = 0;
+      const total = failedKeys.length;
+      let done = 0;
+      function update() {
+        if (bar) bar.style.width = `${Math.floor(100 * (DownloadState.keysFetched / Math.max(DownloadState.keysTotal, 1)))}%`;
+        if (countEl) countEl.textContent = `Retrying ${done} of ${total} failed…`;
+      }
+      update();
+      async function worker() {
+        while (true) {
+          const i = index++;
+          if (i >= failedKeys.length) return;
+          const key = failedKeys[i];
+          try {
+            const data = await s3.getObject({ Bucket: SessionState.bucket, Key: key }).promise();
+            const ab = await bodyToArrayBuffer(data.Body);
+            DownloadState.zip.file(key, ab);
+          } catch (err) {
+            DownloadState.failures.push({ key, code: err?.code || "Error", msg: err?.message || String(err) });
+          } finally {
+            done++;
+            DownloadState.keysFetched++;
+            update();
+          }
+        }
+      }
+      await Promise.all(Array.from({ length: Math.min(concurrency, failedKeys.length) }, () => worker()));
+      if (DownloadState.failures.length) {
+        if (failureCard) failureCard.hidden = false;
+        if (failureList) {
+          failureList.innerHTML = DownloadState.failures
+            .map(f => `<li data-key="${escapeHTML(f.key)}">${escapeHTML(f.key)} — ${escapeHTML(f.code)} ${escapeHTML(f.msg)}</li>`)
+            .join("");
+        }
+        if (retryBtn) retryBtn.hidden = false;
+        return;
+      }
+      await finalizeZipAndDownload();
+    }
+
+    async function finalizeZipAndDownload() {
+      const bar = el("downloadProgressBar");
+      const countEl = el("downloadProgressCount");
+      if (countEl) countEl.textContent = "Compressing…";
+      try {
+        const blob = await DownloadState.zip.generateAsync(
+          { type: "blob", compression: "DEFLATE", compressionOptions: { level: 6 } },
+          (meta) => {
+            const pct = Math.floor(meta.percent || 0);
+            if (bar) bar.style.width = `${pct}%`;
+            if (countEl) countEl.textContent = `Compressing ${pct}%…`;
+          }
+        );
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = formatArchiveName();
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 4000);
+        showToast("Download", "Archive download started.");
+
+        // Reset selection after download
+        SelectionState.selectedKeys.clear();
+        SelectionState.selectedPrefixes.clear();
+        SelectionState.selectAllPage = false;
+        const selectAll = el("selectAllPage");
+        if (selectAll) selectAll.checked = false;
+        updateSelectionUI();
+
+        closeDownloadProgressModal();
+      } catch (err) {
+        showToast("Download Failed", `${escapeHTML(err.message || String(err))}`, { autoDismissMs: 12000 });
+      } finally {
+        DownloadState.inProgress = false;
+        DownloadState.zip = null;
+        DownloadState.keysTotal = 0;
+        DownloadState.keysFetched = 0;
+        DownloadState.failures = [];
+      }
+    }
+ 
+    // Sign-out
+    function signOut() {
+      // Abort uploads
+      for (const [id, op] of OperationRegistry.uploads.entries()) {
+        try { op.managedUpload?.abort(); } catch {}
+      }
+      OperationRegistry.uploads.clear();
+      OperationRegistry.deletes.clear();
+      OperationRegistry.listings.status = "idle";
+
+      // Purge credentials
+      SessionState.accessKeyId = "";
+      SessionState.secretAccessKey = "";
+      SessionState.region = "";
+      SessionState.bucket = "";
+      SessionState.connected = false;
+
+      // Reset UI
+      s3 = null;
+      NavigationState.currentPrefix = "";
+      NavigationState.breadcrumbs = [];
+      ListingState.objects = [];
+      ListingState.prefixes = [];
+      ListingState.nextContinuationToken = null;
+      ListingState.isLoading = false;
+      ListingState.lastRefreshedAt = null;
+
+      SelectionState.selectedKeys.clear();
+      SelectionState.selectedPrefixes.clear();
+      SelectionState.selectAllPage = false;
+
+      FilterState.text = "";
+      FilterState.active = false;
+
+      el("rows").innerHTML = "";
+      el("loadMoreBtn").hidden = true;
+      el("emptyState").hidden = true;
+      el("connect-card").hidden = false;
+      el("app").hidden = true;
+      const infoFabEl = el("infoFab"); if (infoFabEl) infoFabEl.hidden = false;
+      const signOutBtn = el("signOutBtn"); if (signOutBtn) signOutBtn.hidden = true;
+      el("accessKeyId").value = "";
+      el("secretAccessKey").value = "";
+      el("region").value = "";
+      el("bucket").value = "";
+      validateConnectForm(false);
+
+      showToast("Signed Out", "Session reset. Credentials purged.");
+    }
+
+    // Event bindings
+    function bindEvents() {
+      ["accessKeyId","secretAccessKey","region","bucket"].forEach(id => {
+        el(id).addEventListener("input", () => validateConnectForm(false));
+      });
+
+      el("connectBtn").addEventListener("click", connect);
+
+      el("crumb-root").addEventListener("click", (e) => { e.preventDefault(); navigateToPrefix(""); });
+
+      el("signOutBtn").addEventListener("click", signOut);
+
+      el("uploadBtn").addEventListener("click", openUploadModal);
+      el("openFilePickerBtn").addEventListener("click", () => el("filePicker").click());
+      el("filePicker").addEventListener("change", (e) => {
+        const files = Array.from(e.target.files || []);
+        files.forEach(addUpload);
+      });
+
+      const dropzone = el("dropzone");
+      dropzone.addEventListener("click", () => el("filePicker").click());
+      ["dragenter","dragover"].forEach(evt => dropzone.addEventListener(evt, (e) => { e.preventDefault(); dropzone.classList.add("dragover"); }));
+      ["dragleave","drop"].forEach(evt => dropzone.addEventListener(evt, (e) => { e.preventDefault(); dropzone.classList.remove("dragover"); }));
+      dropzone.addEventListener("drop", (e) => {
+        const files = Array.from(e.dataTransfer.files || []);
+        files.forEach(addUpload);
+      });
+
+      el("closeUploadModalBtn").addEventListener("click", closeUploadModal);
+      el("uploadCloseBtn").addEventListener("click", closeUploadModal);
+
+      el("previewCloseBtn").addEventListener("click", () => { UIState.modals.preview = false; cleanupPreview(); closeModal("previewModalOverlay"); });
+      el("closePreviewModalBtn").addEventListener("click", () => { UIState.modals.preview = false; cleanupPreview(); closeModal("previewModalOverlay"); });
+
+      el("createDirBtn").addEventListener("click", openCreateDirModal);
+      el("createDirConfirmBtn").addEventListener("click", () => createDirectory(el("dirName").value));
+      el("createDirCancelBtn").addEventListener("click", closeCreateDirModal);
+      el("closeCreateDirModalBtn").addEventListener("click", closeCreateDirModal);
+
+      el("deleteBtn").addEventListener("click", openConfirmDeleteModal);
+      el("confirmDeleteCancelBtn").addEventListener("click", () => { UIState.modals.confirmDelete = false; closeModal("confirmDeleteModalOverlay"); });
+      el("closeConfirmDeleteModalBtn").addEventListener("click", () => { UIState.modals.confirmDelete = false; closeModal("confirmDeleteModalOverlay"); });
+
+      el("deleteDirCancelBtn").addEventListener("click", () => { UIState.modals.deleteDir = false; closeModal("deleteDirModalOverlay"); });
+      el("closeDeleteDirModalBtn").addEventListener("click", () => { UIState.modals.deleteDir = false; closeModal("deleteDirModalOverlay"); });
+
+      el("filterInput").addEventListener("input", (e) => {
+        FilterState.text = e.target.value;
+        FilterState.active = !!FilterState.text;
+        el("clearFilterBtn").disabled = !FilterState.active;
+        applyFilterLocal();
+      });
+      el("clearFilterBtn").addEventListener("click", filterClear);
+
+      const refreshBtnEl = el("refreshBtn");
+      if (refreshBtnEl) refreshBtnEl.addEventListener("click", () => listPrefix(NavigationState.currentPrefix, null, true));
+
+      el("loadMoreBtn").addEventListener("click", async () => {
+        const token = ListingState.nextContinuationToken;
+        if (token) {
+          const prevScroll = window.scrollY;
+          await listPrefix(NavigationState.currentPrefix, token, false);
+          window.scrollTo({ top: prevScroll, behavior: "auto" });
+        }
+      });
+
+      el("selectAllPage").addEventListener("change", (e) => {
+        const selectAll = e.target.checked;
+        SelectionState.selectAllPage = selectAll;
+        const rows = el("rows").children;
+        for (const row of rows) {
+          if (row.style.display === "none") continue;
+          const checkbox = row.querySelector("input[type='checkbox']");
+          if (!checkbox) continue;
+
+          // Reflect header toggle in per-row checkbox
+          checkbox.checked = selectAll;
+
+          // Determine full path from row content (link text is relative; includes trailing slash for folders)
+          const nameCell = row.children[1];
+          const typeCell = row.children[2];
+          const isFolder = (typeCell.querySelector(".type-badge")?.textContent || "") === "folder";
+          const keyOrPrefix = nameCell.querySelector("a")?.textContent || "";
+          const fullPath = NavigationState.currentPrefix + keyOrPrefix;
+
+          if (selectAll) {
+            if (isFolder) SelectionState.selectedPrefixes.add(fullPath);
+            else SelectionState.selectedKeys.add(fullPath);
+          } else {
+            if (isFolder) SelectionState.selectedPrefixes.delete(fullPath);
+            else SelectionState.selectedKeys.delete(fullPath);
+          }
+        }
+        updateSelectionUI();
+      });
+
+      // Info modal bindings
+      const infoFabEl = el("infoFab");
+      if (infoFabEl) {
+        infoFabEl.hidden = false;
+        infoFabEl.addEventListener("click", () => {
+          UIState.modals.info = true;
+          openModal("infoModalOverlay", "infoModal");
+        });
+      }
+      const closeInfoBtn = el("closeInfoModalBtn");
+      if (closeInfoBtn) {
+        closeInfoBtn.addEventListener("click", () => { UIState.modals.info = false; closeModal("infoModalOverlay"); });
+      }
+      const infoCloseBtnFooter = el("infoCloseBtn");
+      if (infoCloseBtnFooter) {
+        infoCloseBtnFooter.addEventListener("click", () => { UIState.modals.info = false; closeModal("infoModalOverlay"); });
+      }
+      const copyIamBtn = el("copyIamPolicyBtn");
+      if (copyIamBtn) {
+        copyIamBtn.addEventListener("click", async () => {
+          try { await copyTextById("iamPolicyBlock"); showToast("Copied", "IAM Policy copied to clipboard."); }
+          catch (err) { showToast("Copy Failed", err?.message || String(err)); }
+        });
+      }
+      const copyCorsBtn = el("copyCorsBtn");
+      if (copyCorsBtn) {
+        copyCorsBtn.addEventListener("click", async () => {
+          try { await copyTextById("corsBlock"); showToast("Copied", "CORS config copied to clipboard."); }
+          catch (err) { showToast("Copy Failed", err?.message || String(err)); }
+        });
+      }
+
+      // Move feature bindings
+      const moveBtn = el("moveBtn");
+      if (moveBtn) {
+        moveBtn.addEventListener("click", () => openMovePickerModal());
+      }
+      const moveSelectBtn = el("movePickerSelectBtn");
+      if (moveSelectBtn) {
+        moveSelectBtn.addEventListener("click", async () => {
+          try {
+            const keys = Array.from(SelectionState.selectedKeys);
+            const dest = MoveState.destPrefix || "";
+            const conflicts = await preflightMoveConflicts(keys, dest);
+            MoveState.conflicts = conflicts;
+            openMoveConfirmModal(keys, dest, conflicts);
+            UIState.modals.movePicker = false;
+            closeModal("movePickerModalOverlay");
+          } catch (err) {
+            showToast("Move Preflight Failed", `${escapeHTML(err.message || String(err))}`);
+          }
+        });
+      }
+      const movePickerCancelBtn = el("movePickerCancelBtn");
+      if (movePickerCancelBtn) {
+        movePickerCancelBtn.addEventListener("click", () => { UIState.modals.movePicker = false; closeModal("movePickerModalOverlay"); });
+      }
+      const closeMovePickerModalBtn = el("closeMovePickerModalBtn");
+      if (closeMovePickerModalBtn) {
+        closeMovePickerModalBtn.addEventListener("click", () => { UIState.modals.movePicker = false; closeModal("movePickerModalOverlay"); });
+      }
+
+      const moveConfirmOverwriteBtn = el("moveConfirmOverwriteBtn");
+      if (moveConfirmOverwriteBtn) {
+        moveConfirmOverwriteBtn.addEventListener("click", async () => {
+          const keys = Array.from(SelectionState.selectedKeys);
+          await performBulkMove(keys, MoveState.destPrefix || "");
+        });
+      }
+      const moveConfirmBackBtn = el("moveConfirmBackBtn");
+      if (moveConfirmBackBtn) {
+        moveConfirmBackBtn.addEventListener("click", () => {
+          UIState.modals.moveConfirm = false;
+          closeModal("moveConfirmModalOverlay");
+          UIState.modals.movePicker = true;
+          openModal("movePickerModalOverlay", "movePickerModal");
+          renderMovePicker();
+        });
+      }
+      const moveConfirmCancelBtn = el("moveConfirmCancelBtn");
+      if (moveConfirmCancelBtn) {
+        moveConfirmCancelBtn.addEventListener("click", () => { UIState.modals.moveConfirm = false; closeModal("moveConfirmModalOverlay"); });
+      }
+      const closeMoveConfirmModalBtn = el("closeMoveConfirmModalBtn");
+      if (closeMoveConfirmModalBtn) {
+        closeMoveConfirmModalBtn.addEventListener("click", () => { UIState.modals.moveConfirm = false; closeModal("moveConfirmModalOverlay"); });
+      }
+
+      const moveRetryFailedBtn = el("moveRetryFailedBtn");
+      if (moveRetryFailedBtn) {
+        moveRetryFailedBtn.addEventListener("click", async () => {
+          const items = Array.from(el("moveFailureList")?.querySelectorAll("li") || []);
+          const failedKeys = items.map(li => li.dataset.key).filter(Boolean);
+          if (failedKeys.length) {
+            await performBulkMove(failedKeys, MoveState.destPrefix || "");
+          }
+        });
+      }
+      const moveProgressCancelBtn = el("moveProgressCancelBtn");
+      if (moveProgressCancelBtn) {
+        moveProgressCancelBtn.addEventListener("click", () => { UIState.modals.moveProgress = false; closeModal("moveProgressModalOverlay"); });
+      }
+      const closeMoveProgressModalBtn = el("closeMoveProgressModalBtn");
+      if (closeMoveProgressModalBtn) {
+        closeMoveProgressModalBtn.addEventListener("click", () => { UIState.modals.moveProgress = false; closeModal("moveProgressModalOverlay"); });
+      }
+
+      // Download feature bindings
+      const downloadBtn = el("downloadBtn");
+      if (downloadBtn) {
+        downloadBtn.addEventListener("click", () => startMultiDownload());
+      }
+      const downloadRetryFailedBtn = el("downloadRetryFailedBtn");
+      if (downloadRetryFailedBtn) {
+        downloadRetryFailedBtn.addEventListener("click", async () => {
+          const items = Array.from(el("downloadFailureList")?.querySelectorAll("li") || []);
+          const failed = items.map(li => li.dataset.key).filter(Boolean);
+          if (failed.length) {
+            await retryFailedDownloads(failed);
+          }
+        });
+      }
+      const downloadProgressCancelBtn = el("downloadProgressCancelBtn");
+      if (downloadProgressCancelBtn) {
+        downloadProgressCancelBtn.addEventListener("click", () => { UIState.modals.downloadProgress = false; closeModal("downloadProgressModalOverlay"); });
+      }
+      const closeDownloadProgressModalBtn = el("closeDownloadProgressModalBtn");
+      if (closeDownloadProgressModalBtn) {
+        closeDownloadProgressModalBtn.addEventListener("click", () => { UIState.modals.downloadProgress = false; closeModal("downloadProgressModalOverlay"); });
+      }
+ 
+    }
+ 
+    // Initialization
+    function init() {
+      // Reflect focus outline color from Config
+      try {
+        document.documentElement.style.setProperty("--focus", Config.uiFocusOutlineColor);
+      } catch {}
+      bindEvents();
+      validateConnectForm(false);
+
+      // Initialize theme toggle UI icons/labels without causing layout shift
+      try { updateThemeToggleUI(); } catch {}
+    }
+    init();
+  </script>
+  <script>
+    (function () {
+      setTimeout(function () {
+        var banners = document.querySelectorAll('.banner');
+        if (!banners || banners.length === 0) return;
+        banners.forEach(function (bannerEl) {
+          bannerEl.classList.add('banner--fade-out');
+          setTimeout(function () {
+            bannerEl.style.display = 'none';
+          }, 2000);
+        });
+      }, 10000);
+    })();
+  </script>
+</body>
+</html>
