@@ -9,23 +9,29 @@ Unreleased changes are collected automatically via Release Drafter and appear he
 ## [Unreleased]
 
 ### Added
+
 - Initial adoption of standardized GitHub project files: LICENSE, Code of Conduct, Security Policy, Contributing Guide, Support Guide
 
 ### Changed
+
 - Repository structure and docs refined for contributor experience
 
 ### Fixed
+
 - N A
 
 ## [1.0.0] - YYYY-MM-DD
 
 ### Added
+
 - Initial tagged release of S3 Explorer in a multi-file structure
 
 ### Changed
+
 - N A
 
 ### Fixed
+
 - N A
 
 <!--

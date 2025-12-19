@@ -22,10 +22,12 @@ Please do not include secrets, credentials, or personal data in your report. If 
 ## Scope
 
 This project is a static, client-side S3 explorer:
+
 - Runs entirely in the browser and does not persist credentials.
 - Connects directly to AWS S3 using AWS SDK v2 loaded from a CDN.
 
 Out of scope examples:
+
 - Issues caused by misconfigured AWS IAM policies or S3 CORS on user infrastructure.
 - General AWS account security posture outside of how the application uses the SDK.
 
@@ -47,6 +49,7 @@ If you are using a fork or pinned commit, consider updating to the latest main f
 ## Safe Harbor
 
 We will not pursue legal action against researchers for good-faith, non-destructive testing that:
+
 - Respects user privacy and does not access data you do not own or have permission to test.
 - Does not degrade the service for others.
 - Abides by the guidelines above and uses private reporting via Security Advisories.

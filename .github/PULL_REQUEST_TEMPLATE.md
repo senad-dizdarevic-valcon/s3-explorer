@@ -13,6 +13,7 @@ If the UI changes, include before or after screenshots or a short recording.
 ## How to Test
 
 Describe manual testing steps, including serving locally:
+
 - python3 -m http.server
 - Open http://localhost:8000
 

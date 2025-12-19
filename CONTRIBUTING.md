@@ -37,6 +37,7 @@ See [README.md](README.md) for more details.
 ## Tests and quality checks
 
 This repository uses linting and formatting checks enforced in CI:
+
 - HTML: HTMLHint
 - CSS: Stylelint
 - JS: ESLint
@@ -61,6 +62,7 @@ The CI workflow is defined in [.github/workflows/ci.yml](.github/workflows/ci.ym
 ### Pull Request expectations
 
 Use the PR template that is auto-populated when opening a PR:
+
 - Provide a clear summary and motivation
 - Link related issues
 - Include screenshots or recordings for UI changes
@@ -70,6 +72,7 @@ Use the PR template that is auto-populated when opening a PR:
 ## Commit messages
 
 Use a Conventional Commits style where possible:
+
 - feat: add new functionality
 - fix: bug fix
 - docs: documentation changes
@@ -79,6 +82,7 @@ Use a Conventional Commits style where possible:
 - chore: maintenance tasks
 
 Examples:
+
 - feat: add multipart upload progress indicator
 - fix: correct region handling for bucket redirects
 
