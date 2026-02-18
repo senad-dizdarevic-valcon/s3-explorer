@@ -72,7 +72,7 @@
   --link: var(--gray-100);
   --link-hover: #ffffff;
   --header-height: 64px;
-  --header-offset: calc(var(--header-height) + 12px);
+  --header-offset: 42px;
   --radius-sm: 6px;
   --radius-md: 10px;
   --radius-lg: 14px;
@@ -1100,11 +1100,7 @@ body {
   padding: 0;
   max-width: 100%;
   overflow-x: hidden;
-}
-
-body {
   padding-top: var(--header-offset);
-  scroll-padding-top: calc(var(--header-offset) + 12px);
 }
 
 body::before {
