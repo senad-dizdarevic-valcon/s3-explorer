@@ -191,56 +191,6 @@ function clearInlineBanner(id) {
   banner.hidden = true;
 }
 
-// Theme helpers: accessible toggle, persisted in localStorage
-function currentTheme() {
-  const t = document.documentElement.getAttribute("data-theme");
-  return t === "dark" ? "dark" : "light";
-}
-function setTheme(theme, persist = true) {
-  const t = theme === "dark" ? "dark" : "light";
-  document.documentElement.setAttribute("data-theme", t);
-  if (persist) {
-    try {
-      localStorage.setItem("theme", t);
-    } catch {}
-  }
-  updateThemeToggleUI();
-}
-function toggleTheme() {
-  setTheme(currentTheme() === "dark" ? "light" : "dark");
-}
-function updateThemeToggleUI() {
-  const isDark = currentTheme() === "dark";
-  const label = "Theme: " + (isDark ? "Dark" : "Light");
-  ["themeToggleTop", "themeToggleApp"].forEach(function (id) {
-    var btn = el(id);
-    if (!btn) return;
-    btn.setAttribute("aria-pressed", String(isDark));
-    btn.setAttribute("aria-label", label);
-    btn.innerHTML = isDark ? getSunIconSVG() : getMoonIconSVG();
-  });
-}
-function getSunIconSVG() {
-  return '<svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M6.76 4.84l-1.8-1.79-1.41 1.41 1.79 1.8 1.42-1.42zm10.45 12.73l1.79 1.8 1.41-1.41-1.8-1.79-1.4 1.4zM12 4V1h0v3zm0 22v-3 3zM4 12H1h3zm22 0h-3 3zM6.76 19.16l-1.42 1.42-1.79-1.8 1.41-1.41 1.8 1.79zM19.16 6.76l1.8-1.79-1.41-1.41-1.79 1.8 1.4 1.4zM12 6a6 6 0 100 12 6 6 0 000-12z"/></svg>';
-}
-function getMoonIconSVG() {
-  return '<svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M21 12.79A9 9 0 1111.21 3a7 7 0 109.79 9.79z"/></svg>';
-}
-// Expose a global for inline handlers without touching existing bindEvents
-window.__toggleTheme = toggleTheme;
-
-(function () {
-  var btn = document.getElementById("themeToggleTop");
-  if (btn) {
-    btn.addEventListener("click", function (e) {
-      e.preventDefault();
-      if (typeof window.__toggleTheme === "function") {
-        window.__toggleTheme();
-      }
-    });
-  }
-})();
-
 // Modal controls and focus management
 function openModal(overlayId, modalFocusId) {
   const overlay = el(overlayId);
@@ -2588,10 +2538,5 @@ function init() {
   } catch {}
   bindEvents();
   validateConnectForm(false);
-
-  // Initialize theme toggle UI icons/labels without causing layout shift
-  try {
-    updateThemeToggleUI();
-  } catch {}
 }
 init();

@@ -1,51 +1,65 @@
 :root {
-  --navy-950: #0d1b2a;
-  --navy-900: #1b263b;
-  --navy-700: #415a77;
-  --navy-500: #778da9;
-  --navy-100: #e0e1dd;
+  --gray-950: #0d1117;
+  --gray-900: #161b22;
+  --gray-850: #1c2128;
+  --gray-800: #21262d;
+  --gray-700: #30363d;
+  --gray-600: #3d444d;
+  --gray-500: #8b949e;
+  --gray-200: #c9d1d9;
+  --gray-100: #f0f6fc;
 
-  --bg: var(--navy-950);
-  --bg-muted: var(--navy-900);
-  --surface: rgba(27, 38, 59, 0.72);
-  --surface-strong: rgba(13, 27, 42, 0.82);
-  --border: rgba(119, 141, 169, 0.25);
-  --border-strong: rgba(119, 141, 169, 0.4);
-  --text: var(--navy-100);
-  --text-muted: var(--navy-500);
-  --focus: var(--navy-100);
-  --primary: var(--navy-700);
-  --primary-contrast: var(--navy-100);
-  --secondary-bg: rgba(65, 90, 119, 0.25);
-  --secondary-text: var(--navy-100);
-  --destructive-bg: rgba(65, 90, 119, 0.55);
-  --destructive-text: var(--navy-100);
-  --warning-bg: rgba(65, 90, 119, 0.25);
-  --warning-text: var(--navy-100);
-  --error-bg: rgba(27, 38, 59, 0.9);
-  --error-text: var(--navy-100);
-  --success-bg: rgba(119, 141, 169, 0.2);
-  --success-text: var(--navy-100);
-  --toast-bg: rgba(13, 27, 42, 0.88);
-  --toast-text: var(--navy-100);
-  --shadow: 0 12px 30px rgba(13, 27, 42, 0.45);
-  --row-hover: rgba(65, 90, 119, 0.35);
-  --row-selected: rgba(119, 141, 169, 0.28);
-  --chip-bg: rgba(65, 90, 119, 0.2);
-  --input-bg: rgba(13, 27, 42, 0.75);
-  --link: var(--navy-100);
-  --link-hover: var(--navy-500);
+  --bg: var(--gray-950);
+  --bg-muted: #0b0f14;
+  --surface: var(--gray-900);
+  --surface-strong: var(--gray-850);
+  --border: var(--gray-700);
+  --border-strong: var(--gray-600);
+  --text: var(--gray-200);
+  --text-muted: var(--gray-500);
+  --focus: rgba(88, 166, 255, 0.75);
+
+  --primary: #2f81f7;
+  --primary-hover: #1f6feb;
+  --primary-contrast: #ffffff;
+  --secondary-bg: var(--gray-800);
+  --secondary-hover: var(--gray-700);
+  --secondary-text: var(--gray-100);
+  --destructive-bg: #da3633;
+  --destructive-hover: #f85149;
+  --destructive-text: #ffffff;
+  --warning-bg: rgba(210, 153, 34, 0.16);
+  --warning-text: #f2cc60;
+  --error-bg: rgba(248, 81, 73, 0.18);
+  --error-text: #f85149;
+  --success-bg: rgba(46, 160, 67, 0.18);
+  --success-text: #3fb950;
+  --toast-bg: rgba(22, 27, 34, 0.95);
+  --toast-text: var(--gray-100);
+  --shadow: 0 10px 30px rgba(1, 4, 9, 0.45);
+  --row-hover: rgba(48, 54, 61, 0.6);
+  --row-selected: rgba(56, 139, 253, 0.18);
+  --chip-bg: rgba(48, 54, 61, 0.45);
+  --input-bg: var(--gray-900);
+  --link: var(--gray-100);
+  --link-hover: #ffffff;
+  --header-height: 72px;
+  --header-offset: calc(var(--header-height) + 10px);
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
   color-scheme: dark;
 }
 
 *:focus-visible {
-  outline: none;
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
 }
 
 .card {
-  background: linear-gradient(180deg, rgba(27, 38, 59, 0.78), rgba(13, 27, 42, 0.88));
+  background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 5px;
+  border-radius: var(--radius-md);
   box-shadow: var(--shadow);
   padding: 18px;
   margin-bottom: 16px;
@@ -81,6 +95,7 @@ label {
   display: block;
   font-weight: 600;
   margin-bottom: 6px;
+  color: var(--text);
 }
 
 .helper {
@@ -99,7 +114,7 @@ input[type="password"],
 select {
   width: 100%;
   padding: 10px 12px;
-  border-radius: 5px;
+  border-radius: var(--radius-sm);
   border: 1px solid var(--border-strong);
   background: var(--input-bg);
   color: var(--text);
@@ -111,12 +126,12 @@ select {
 input[type="text"]:focus,
 input[type="password"]:focus,
 select:focus {
-  border-color: rgba(224, 225, 221, 0.35);
-  box-shadow: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(47, 129, 247, 0.25);
   outline: none;
 }
 ::placeholder {
-  color: rgba(119, 141, 169, 0.8);
+  color: var(--text-muted);
 }
 
 /* Enhanced padding class for connection form inputs */
@@ -124,7 +139,7 @@ select:focus {
   width: 100%;
   box-sizing: border-box; /* include padding in width to prevent overlap */
   padding: 12px 16px; /* increased horizontal padding */
-  border-radius: 5px;
+  border-radius: var(--radius-sm);
 }
 
 .actions {
@@ -138,23 +153,34 @@ select:focus {
   cursor: not-allowed;
 }
 .btn:not([disabled]):hover {
-  transform: translateY(-1px);
-  box-shadow: 0 8px 18px rgba(13, 27, 42, 0.35);
+  box-shadow: 0 6px 16px rgba(1, 4, 9, 0.3);
 }
 .btn-primary {
-  background: linear-gradient(135deg, rgba(65, 90, 119, 0.95), rgba(119, 141, 169, 0.9));
+  background: var(--primary);
   color: var(--primary-contrast);
-  border-color: rgba(119, 141, 169, 0.6);
+  border-color: var(--primary);
+}
+.btn-primary:not([disabled]):hover {
+  background: var(--primary-hover);
+  border-color: var(--primary-hover);
 }
 .btn-secondary {
   background: var(--secondary-bg);
   color: var(--secondary-text);
   border-color: var(--border);
 }
+.btn-secondary:not([disabled]):hover {
+  background: var(--secondary-hover);
+  border-color: var(--border-strong);
+}
 .btn-destructive {
   background: var(--destructive-bg);
   color: var(--destructive-text);
-  border-color: rgba(119, 141, 169, 0.55);
+  border-color: var(--destructive-bg);
+}
+.btn-destructive:not([disabled]):hover {
+  background: var(--destructive-hover);
+  border-color: var(--destructive-hover);
 }
 .btn-ghost {
   background: transparent;
@@ -162,7 +188,7 @@ select:focus {
   border-color: transparent;
 }
 .btn-ghost:hover {
-  background: rgba(119, 141, 169, 0.12);
+  background: var(--surface-strong);
   color: var(--text);
   border-color: var(--border);
 }
@@ -190,9 +216,9 @@ select:focus {
   padding: 12px 14px;
   border: 1px solid var(--border);
   margin-bottom: 12px;
-  background: rgba(27, 38, 59, 0.4);
-  border-radius: 5px;
-  box-shadow: 0 10px 22px rgba(13, 27, 42, 0.3);
+  background: var(--surface);
+  border-radius: var(--radius-md);
+  box-shadow: 0 8px 18px rgba(1, 4, 9, 0.28);
   animation: rise 0.6s ease both;
 }
 
@@ -211,7 +237,7 @@ select:focus {
   color: var(--link);
   text-decoration: none;
   padding: 2px 4px;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -222,10 +248,7 @@ select:focus {
 }
 .breadcrumbs a:hover {
   color: var(--link-hover);
-  text-decoration: underline;
-  text-decoration-thickness: 2px;
-  text-underline-offset: 3px;
-  background: rgba(119, 141, 169, 0.12);
+  background: rgba(88, 166, 255, 0.12);
 }
 .crumb-sep {
   color: var(--text-muted);
@@ -313,7 +336,7 @@ select:focus {
 /* List view */
 .list {
   border: 1px solid var(--border);
-  border-radius: 5px;
+  border-radius: var(--radius-md);
   overflow: hidden;
   background: var(--surface);
   box-shadow: var(--shadow);
@@ -327,7 +350,7 @@ select:focus {
   gap: 8px;
 }
 .list-header {
-  background: rgba(65, 90, 119, 0.16);
+  background: var(--surface-strong);
   padding: 10px 12px;
   font-weight: 700;
 }
@@ -352,7 +375,7 @@ select:focus {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  color: var(--navy-500);
+  color: var(--text-muted);
   flex: 0 0 auto;
 }
 .folder-icon svg {
@@ -385,14 +408,14 @@ select:focus {
   z-index: 1000;
 }
 .toast {
-  background: linear-gradient(135deg, rgba(27, 38, 59, 0.75), rgba(13, 27, 42, 0.9));
+  background: var(--toast-bg);
   color: var(--toast-text);
   padding: 12px 16px;
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   box-shadow: var(--shadow);
   border: 1px solid var(--border-strong);
   pointer-events: auto;
-  backdrop-filter: blur(10px);
+  backdrop-filter: blur(8px);
   animation: toast-in 240ms ease both;
 }
 
@@ -435,14 +458,14 @@ select:focus {
   width: 28px;
   height: 28px;
   border-radius: 50%;
-  border: 1px solid transparent;
-  background: rgba(119, 141, 169, 0.15);
+  border: 1px solid var(--border);
+  background: var(--surface-strong);
   color: var(--toast-text);
   cursor: pointer;
   font-weight: 700;
 }
 .toast button:hover {
-  background: rgba(119, 141, 169, 0.28);
+  background: var(--secondary-hover);
 }
 .toast--leave {
   animation: toast-out 200ms ease both;
@@ -484,7 +507,7 @@ select:focus {
   background: var(--warning-bg);
   color: var(--warning-text);
   padding: 10px 12px;
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   margin-top: 8px;
 }
 .inline-banner.error {
@@ -502,7 +525,7 @@ select:focus {
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(13, 27, 42, 0.7);
+  background: rgba(1, 4, 9, 0.72);
   display: none;
   align-items: center;
   justify-content: center;
@@ -512,10 +535,10 @@ select:focus {
   display: flex;
 }
 .modal {
-  background: linear-gradient(180deg, rgba(27, 38, 59, 0.98), rgba(13, 27, 42, 0.98));
+  background: var(--surface);
   color: var(--text);
   border: 1px solid var(--border);
-  border-radius: 16px;
+  border-radius: var(--radius-lg);
   box-shadow: var(--shadow);
   width: 1020px;
   max-width: calc(100vw - 32px);
@@ -565,15 +588,15 @@ select:focus {
 /* Dropzone */
 .dropzone {
   border: 2px dashed var(--border);
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   padding: 20px;
   text-align: center;
   color: var(--text-muted);
-  background: rgba(13, 27, 42, 0.4);
+  background: var(--surface-strong);
 }
 .dropzone.dragover {
   border-color: var(--primary);
-  background: rgba(65, 90, 119, 0.35);
+  background: rgba(47, 129, 247, 0.12);
   color: var(--text);
 }
 
@@ -590,10 +613,10 @@ select:focus {
   width: 44px;
   height: 44px;
   border-radius: 999px;
-  background: linear-gradient(135deg, rgba(45, 65, 90, 0.7), rgba(80, 100, 125, 0.55));
+  background: var(--primary);
   color: var(--primary-contrast);
   box-shadow: var(--shadow);
-  border: 1px solid rgba(119, 141, 169, 0.5);
+  border: 1px solid var(--primary);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -601,20 +624,22 @@ select:focus {
   font-size: 22px;
   cursor: pointer;
   z-index: 1100; /* above the bottom banner which is 1000 */
-  opacity: 0.6;
-  transition: box-shadow 0.2s ease, opacity 0.2s ease, filter 0.2s ease;
+  opacity: 0.85;
+  transition: box-shadow 0.2s ease, opacity 0.2s ease, filter 0.2s ease,
+    background 0.2s ease;
 }
 .info-fab:hover {
-  filter: brightness(0.95);
-  opacity: 0.85;
+  filter: brightness(1.05);
+  opacity: 1;
+  background: var(--primary-hover);
 }
 
 /* Preformatted JSON block styling */
 .code-block {
-  background: rgba(13, 27, 42, 0.6);
+  background: var(--surface-strong);
   color: var(--text);
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   padding: 12px;
   white-space: pre-wrap;
   word-wrap: break-word;
@@ -648,8 +673,8 @@ select:focus {
   opacity: 0.9;
 }
 .requirements-card {
-  background: linear-gradient(180deg, rgba(20, 34, 54, 0.75), rgba(11, 22, 36, 0.82));
-  border-radius: 5px;
+  background: var(--surface-strong);
+  border-radius: var(--radius-md);
   padding: 12px;
 }
 .requirements-card__header {
@@ -667,14 +692,14 @@ select:focus {
 .requirements-copy {
   min-height: 36px;
   padding: 6px 12px;
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
 }
 #infoModal .code-block {
-  background: rgba(8, 16, 26, 0.55);
-  border-color: rgba(119, 141, 169, 0.25);
+  background: var(--bg-muted);
+  border-color: var(--border);
   font-size: 0.84rem;
   line-height: 1.55;
-  border-radius: 5px;
+  border-radius: var(--radius-sm);
 }
 
 /* Requirements side panel */
@@ -682,7 +707,7 @@ select:focus {
   display: flex;
   align-items: stretch;
   justify-content: flex-end;
-  background: rgba(6, 12, 20, 0.6);
+  background: rgba(1, 4, 9, 0.7);
   opacity: 0;
   visibility: hidden;
   pointer-events: none;
@@ -704,7 +729,7 @@ select:focus {
   max-width: 560px;
   height: 100vh;
   max-height: 100vh;
-  border-radius: 6px 0 0 6px;
+  border-radius: var(--radius-md) 0 0 var(--radius-md);
   margin: 0;
   transform: translateX(-32px);
   opacity: 0;
@@ -751,7 +776,7 @@ select:focus {
   inset: 0;
   display: flex;
   justify-content: flex-end;
-  background: rgba(6, 12, 20, 0.6);
+  background: rgba(1, 4, 9, 0.7);
   opacity: 0;
   visibility: hidden;
   pointer-events: none;
@@ -766,7 +791,7 @@ select:focus {
 .mobile-menu-panel {
   width: min(75vw, 320px);
   height: 100%;
-  background: linear-gradient(180deg, rgba(20, 34, 54, 0.88), rgba(11, 22, 36, 0.95));
+  background: var(--surface);
   border-left: 1px solid var(--border-strong);
   box-shadow: var(--shadow);
   padding: 16px;
@@ -787,9 +812,9 @@ select:focus {
   width: 100%;
   text-align: left;
   padding: 10px 12px;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   border: 1px solid transparent;
-  background: rgba(119, 141, 169, 0.12);
+  background: var(--surface-strong);
   color: var(--text);
   font-weight: 600;
   cursor: pointer;
@@ -798,8 +823,8 @@ select:focus {
   margin-top: 8px;
 }
 .mobile-menu-item:hover {
-  background: rgba(119, 141, 169, 0.2);
-  border-color: rgba(119, 141, 169, 0.3);
+  background: var(--secondary-hover);
+  border-color: var(--border-strong);
 }
 .mobile-menu-close {
   font-size: 16px;
@@ -811,11 +836,11 @@ select:focus {
 
 /* From second inline style: fixed bottom banner fade */
 .banner {
-  background: linear-gradient(135deg, rgba(27, 38, 59, 0.75), rgba(13, 27, 42, 0.9));
+  background: var(--surface);
   color: var(--toast-text);
-  border: 1px solid var(--border-strong);
+  border: 1px solid var(--border);
   padding: 12px 16px;
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   position: fixed;
   bottom: 24px;
   left: 50%;
@@ -824,7 +849,7 @@ select:focus {
   z-index: 1000;
   transition: opacity 1s ease;
   box-shadow: var(--shadow);
-  backdrop-filter: blur(10px);
+  backdrop-filter: blur(8px);
 }
 .banner--fade-out {
   opacity: 0;
@@ -855,6 +880,8 @@ body {
   font-size: clamp(14px, 1.1vw + 0.5rem, 18px);
   min-height: 100vh;
   position: relative;
+  padding-top: var(--header-offset);
+  scroll-padding-top: calc(var(--header-offset) + 12px);
 }
 .container {
   max-width: 1200px;
@@ -867,13 +894,18 @@ html,
 body {
   background: var(--bg);
   color: var(--text);
-  font-family: "Sora", "Manrope", "Nunito Sans", sans-serif;
+  font-family: "Source Sans 3", "Segoe UI", sans-serif;
   letter-spacing: 0.01em;
-  line-height: 1.5;
+  line-height: 1.55;
   margin: 0;
   padding: 0;
   max-width: 100%;
   overflow-x: hidden;
+}
+
+body {
+  padding-top: var(--header-offset);
+  scroll-padding-top: calc(var(--header-offset) + 12px);
 }
 
 body::before {
@@ -882,23 +914,18 @@ body::before {
   inset: 0;
   z-index: -1;
   background:
-    radial-gradient(900px circle at 10% -12%, rgba(119, 141, 169, 0.55), transparent 58%),
-    radial-gradient(1200px circle at 88% 6%, rgba(65, 90, 119, 0.5), transparent 55%),
-    linear-gradient(
-      180deg,
-      rgba(35, 58, 92, 1) 0%,
-      rgba(12, 26, 42, 1) 50%,
-      rgba(5, 10, 18, 1) 78%,
-      rgba(0, 0, 0, 1) 97%,
-      rgba(0, 0, 0, 1) 100%
-    );
+    radial-gradient(820px circle at 12% -10%, rgba(47, 129, 247, 0.18), transparent 60%),
+    radial-gradient(680px circle at 88% 8%, rgba(46, 160, 67, 0.14), transparent 55%),
+    linear-gradient(180deg, rgba(13, 17, 23, 1) 0%, rgba(11, 15, 20, 1) 100%);
 }
 
 a {
   color: var(--link);
+  text-decoration: none;
 }
 a:hover {
   color: var(--link-hover);
+  text-decoration: none;
 }
 
 /* 4) Responsive media */
@@ -918,7 +945,7 @@ iframe {
   justify-content: center;
   gap: 8px;
   padding: 10px 14px;
-  border-radius: 5px;
+  border-radius: var(--radius-sm);
   border: 1px solid var(--border-strong);
   background: transparent;
   color: var(--text);
@@ -929,7 +956,6 @@ iframe {
   min-height: 44px;
   min-width: 44px;
   transition:
-    transform 0.2s ease,
     box-shadow 0.2s ease,
     background 0.2s ease,
     border-color 0.2s ease,
@@ -1021,19 +1047,23 @@ input[type="checkbox"] {
 
 /* 10) Minimal global header */
 .top-header {
-  position: sticky;
+  position: fixed;
   top: 0;
-  z-index: 60;
+  left: 0;
+  right: 0;
+  z-index: 50;
   display: flex;
   justify-content: flex-end;
   align-items: center;
   gap: 8px;
   flex-wrap: wrap;
-  padding: 10px 18px;
-  border-bottom: 1px solid rgba(119, 141, 169, 0.35);
-  background: linear-gradient(135deg, rgba(21, 36, 57, 0.98), rgba(15, 29, 45, 0.98));
-  box-shadow: 0 10px 22px rgba(13, 27, 42, 0.35);
-  backdrop-filter: blur(8px);
+  height: var(--header-height);
+  padding: 0 22px;
+  box-sizing: border-box;
+  border-bottom: 1px solid var(--border);
+  background: rgba(22, 27, 34, 0.9);
+  box-shadow: 0 8px 18px rgba(1, 4, 9, 0.35);
+  backdrop-filter: blur(10px);
 }
 .project-title {
   font-weight: 800;
