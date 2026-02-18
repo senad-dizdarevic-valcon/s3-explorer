@@ -510,7 +510,7 @@ function renderBreadcrumbs() {
     if (idx < parts.length - 1) {
       const sep = document.createElement("span");
       sep.className = "crumb-sep";
-      sep.textContent = "›";
+      sep.textContent = "/";
       sep.setAttribute("aria-hidden", "true");
       wrapper.appendChild(sep);
     }
@@ -1565,7 +1565,7 @@ function renderMovePickerBreadcrumbs() {
   if (parts.length) {
     const sep = document.createElement("span");
     sep.className = "crumb-sep";
-    sep.textContent = "›";
+    sep.textContent = "";
     sep.setAttribute("aria-hidden", "true");
     wrapper.appendChild(sep);
   }
@@ -1586,7 +1586,7 @@ function renderMovePickerBreadcrumbs() {
     if (idx < parts.length - 1) {
       const sep2 = document.createElement("span");
       sep2.className = "crumb-sep";
-      sep2.textContent = "›";
+      sep2.textContent = "/";
       sep2.setAttribute("aria-hidden", "true");
       wrapper.appendChild(sep2);
     }
