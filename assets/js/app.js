@@ -1111,8 +1111,9 @@ async function enqueueFolderFiles(files) {
 
 function traverseEntry(entry, basePath = "") {
   return new Promise((resolve) => {
-    if (!entry) return resolve([]);
-    if (entry.isFile) {
+    if (!entry) {
+      resolve([]);
+    } else if (entry.isFile) {
       entry.file((file) => {
         const relPath = basePath + file.name;
         const wrapped = new File([file], file.name, { type: file.type });
