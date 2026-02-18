@@ -37,8 +37,8 @@
   --focus: rgba(56, 139, 253, 0.7);
 
   --primary: #248636;
-  --primary-hover: #29903B;
-  --primary-active: #288F3A;
+  --primary-hover: #29903b;
+  --primary-active: #288f3a;
   --primary-contrast: #ffffff;
   --primary-soft: rgba(56, 139, 253, 0.16);
 
@@ -510,7 +510,9 @@ select:disabled {
 }
 
 .upload-item {
-  transition: opacity 0.35s ease, transform 0.35s ease;
+  transition:
+    opacity 0.35s ease,
+    transform 0.35s ease;
 }
 .upload-item__row {
   display: flex;
@@ -818,7 +820,10 @@ select:disabled {
   cursor: pointer;
   z-index: 1100; /* above the bottom banner which is 1000 */
   opacity: 0.85;
-  transition: box-shadow 0.2s ease, opacity 0.2s ease, filter 0.2s ease,
+  transition:
+    box-shadow 0.2s ease,
+    opacity 0.2s ease,
+    filter 0.2s ease,
     background 0.2s ease;
 }
 .info-fab:hover {
@@ -925,7 +930,9 @@ select:disabled {
   margin: 0;
   transform: translateX(-32px);
   opacity: 0;
-  transition: transform 0.25s ease, opacity 0.25s ease;
+  transition:
+    transform 0.25s ease,
+    opacity 0.25s ease;
 }
 .info-panel-overlay.active .info-panel {
   transform: translateX(0);
@@ -1108,8 +1115,7 @@ body::before {
   position: fixed;
   inset: 0;
   z-index: -1;
-  background:
-    radial-gradient(820px circle at 12% -10%, rgba(47, 129, 247, 0.12), transparent 60%),
+  background: radial-gradient(820px circle at 12% -10%, rgba(47, 129, 247, 0.12), transparent 60%),
     radial-gradient(680px circle at 88% 8%, rgba(46, 160, 67, 0.1), transparent 55%),
     linear-gradient(180deg, rgba(13, 17, 23, 1) 0%, rgba(11, 15, 20, 1) 100%);
 }
@@ -1238,7 +1244,9 @@ input[type="checkbox"] {
   padding: 12px 16px;
   border-top: 1px solid var(--border);
   min-height: 44px;
-  transition: background 0.2s ease, border-color 0.2s ease;
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease;
 }
 
 /* 10) Minimal global header */
