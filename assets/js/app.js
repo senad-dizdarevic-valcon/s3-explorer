@@ -10,7 +10,7 @@ const Config = {
   retryMaxAttempts: 5,
   deleteBatchSize: 1000,
   allowedDirNamePattern: /^[A-Za-z0-9._-]+$/,
-  uiFocusOutlineColor: "#2563EB"
+  uiFocusOutlineColor: "#E0E1DD"
 };
 
 /* State model (in-memory only) */
@@ -62,6 +62,8 @@ const UIState = {
     confirmDelete: false,
     deleteDir: false,
     info: false,
+    changeBucket: false,
+    folderConfirm: false,
     movePicker: false,
     moveConfirm: false,
     moveProgress: false,
@@ -108,6 +110,25 @@ function escapeHTML(str) {
   return div.innerHTML;
 }
 
+function createFolderIcon() {
+  const icon = document.createElement("span");
+  icon.className = "folder-icon";
+  icon.innerHTML = `
+    <svg aria-hidden="true" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path
+        d="M507.011,116.239c-5.006-5.425-12.726-7.421-19.738-5.101L133.065,228.115c-10.252,3.412-18.56,11.046-22.774,20.992l-57.61,135.794l-2.636-190.3L385.018,82.307l-0.7-50.829c-0.05-3.608-1.826-6.969-4.777-9.058c-2.95-2.09-6.704-2.618-10.124-1.467L183.161,83.714c-4.051,1.374-8.529,0.342-11.566-2.687l-35.253-35.066c-3.02-2.994-7.481-4.052-11.516-2.704L7.729,82.137c-4.666,1.544-7.796,5.937-7.728,10.858l5.357,387.533c0.052,3.583,1.808,6.934,4.743,9.024c2.925,2.082,6.678,2.653,10.099,1.518l390.356-128.979c3.071-1.032,5.561-3.318,6.833-6.304l93.119-219.454C513.391,129.528,512.026,121.671,507.011,116.239z"
+        fill="currentColor"
+      />
+    </svg>
+  `;
+  return icon;
+}
+
+function formatPrefixLabel(prefix, basePrefix) {
+  const label = String(prefix || "").substring(String(basePrefix || "").length) || prefix || "";
+  return label.endsWith("/") ? label.slice(0, -1) : label;
+}
+
 function formatBytes(bytes) {
   if (bytes === undefined || bytes === null) return "";
   const units = ["B", "KB", "MB", "GB", "TB"];
@@ -124,10 +145,25 @@ function showToast(title, message, opts = { autoDismissMs: 8000 }) {
   const container = document.querySelector(".toast-container");
   const toast = document.createElement("div");
   toast.className = "toast";
+  let dismissTimer = null;
+  const removeToast = () => {
+    if (!toast.isConnected) return;
+    toast.classList.add("toast--leave");
+    toast.addEventListener(
+      "animationend",
+      () => {
+        toast.remove();
+      },
+      { once: true }
+    );
+  };
   const btn = document.createElement("button");
   btn.textContent = "×";
   btn.setAttribute("aria-label", "Dismiss");
-  btn.addEventListener("click", () => toast.remove());
+  btn.addEventListener("click", () => {
+    if (dismissTimer) clearTimeout(dismissTimer);
+    removeToast();
+  });
   const titleEl = document.createElement("div");
   titleEl.className = "title";
   titleEl.textContent = title;
@@ -138,7 +174,7 @@ function showToast(title, message, opts = { autoDismissMs: 8000 }) {
   toast.appendChild(msg);
   container.appendChild(toast);
   if (opts.autoDismissMs && opts.autoDismissMs > 0) {
-    setTimeout(() => toast.remove(), opts.autoDismissMs);
+    dismissTimer = setTimeout(removeToast, opts.autoDismissMs);
   }
 }
 
@@ -227,6 +263,99 @@ function closeModal(overlayId) {
   if (last) last.focus();
 }
 
+function openInfoPanel() {
+  const overlay = el("infoModalOverlay");
+  const infoFabEl = el("infoFab");
+  if (infoFabEl) infoFabEl.hidden = true;
+  if (overlay) overlay.classList.remove("is-closing");
+  UIState.modals.info = true;
+  openModal("infoModalOverlay", "infoModal");
+}
+
+function closeInfoPanel() {
+  const overlay = el("infoModalOverlay");
+  if (!overlay) return;
+  overlay.classList.add("is-closing");
+  setTimeout(() => {
+    overlay.classList.remove("is-closing");
+    closeModal("infoModalOverlay");
+    const infoFabEl = el("infoFab");
+    if (infoFabEl) infoFabEl.hidden = false;
+  }, 220);
+}
+
+function openFolderConfirmModal(count) {
+  const body = el("folderConfirmBody");
+  if (body) {
+    body.textContent = `Upload ${count} files from this folder?`;
+  }
+  UIState.modals.folderConfirm = true;
+  openModal("folderConfirmModalOverlay", "folderConfirmModal");
+}
+
+function closeFolderConfirmModal() {
+  UIState.modals.folderConfirm = false;
+  closeModal("folderConfirmModalOverlay");
+}
+
+function setAccountMenuVisible(isVisible) {
+  const mobileMenuBtn = el("mobileMenuBtn");
+  if (mobileMenuBtn) mobileMenuBtn.hidden = !isVisible;
+}
+
+function openMobileMenu() {
+  const overlay = el("mobileMenuOverlay");
+  if (overlay) overlay.classList.add("active");
+}
+
+function closeMobileMenu() {
+  const overlay = el("mobileMenuOverlay");
+  if (overlay) overlay.classList.remove("active");
+}
+
+async function changeBucketFlow() {
+  const input = el("changeBucketInput");
+  const error = el("changeBucketError");
+  if (!input || !error) return;
+  const nextBucket = input.value.trim();
+  if (!isValidBucketName(nextBucket)) {
+    error.textContent = "Bucket format looks invalid.";
+    error.hidden = false;
+    return;
+  }
+  error.textContent = "";
+  error.hidden = true;
+  try {
+    const params = { Bucket: nextBucket, Delimiter: "/", MaxKeys: 1 };
+    await s3.listObjectsV2(params).promise();
+
+    SessionState.bucket = nextBucket;
+    el("connBucket").textContent = nextBucket;
+    el("bucket").value = nextBucket;
+    UIState.modals.changeBucket = false;
+    closeModal("changeBucketModalOverlay");
+    navigateToPrefix("");
+    showToast("Bucket Updated", `Now browsing ${escapeHTML(nextBucket)}.`);
+  } catch (err) {
+    const msg = err?.message || String(err);
+    error.textContent = msg;
+    error.hidden = false;
+    showToast("Bucket Update Failed", msg, { autoDismissMs: 12000 });
+  }
+}
+
+function openChangeBucketModal() {
+  const input = el("changeBucketInput");
+  const error = el("changeBucketError");
+  if (input) input.value = SessionState.bucket || "";
+  if (error) {
+    error.textContent = "";
+    error.hidden = true;
+  }
+  UIState.modals.changeBucket = true;
+  openModal("changeBucketModalOverlay", "changeBucketModal");
+}
+
 function overlayClickToCloseHandler(e) {
   if (e.target.classList.contains("modal-overlay")) {
     // Find which overlay is clicked
@@ -247,13 +376,21 @@ function overlayClickToCloseHandler(e) {
       UIState.modals.confirmDelete = false;
       closeModal("confirmDeleteModalOverlay");
     }
+    if (e.target.id === "folderConfirmModalOverlay") {
+      UIState.modals.folderConfirm = false;
+      closeModal("folderConfirmModalOverlay");
+    }
     if (e.target.id === "deleteDirModalOverlay") {
       UIState.modals.deleteDir = false;
       closeModal("deleteDirModalOverlay");
     }
+    if (e.target.id === "changeBucketModalOverlay") {
+      UIState.modals.changeBucket = false;
+      closeModal("changeBucketModalOverlay");
+    }
     if (e.target.id === "infoModalOverlay") {
       UIState.modals.info = false;
-      closeModal("infoModalOverlay");
+      closeInfoPanel();
     }
     if (e.target.id === "movePickerModalOverlay") {
       UIState.modals.movePicker = false;
@@ -285,9 +422,15 @@ function escToCloseHandler(e) {
     } else if (UIState.modals.confirmDelete) {
       UIState.modals.confirmDelete = false;
       closeModal("confirmDeleteModalOverlay");
+    } else if (UIState.modals.folderConfirm) {
+      UIState.modals.folderConfirm = false;
+      closeModal("folderConfirmModalOverlay");
     } else if (UIState.modals.deleteDir) {
       UIState.modals.deleteDir = false;
       closeModal("deleteDirModalOverlay");
+    } else if (UIState.modals.changeBucket) {
+      UIState.modals.changeBucket = false;
+      closeModal("changeBucketModalOverlay");
     } else if (UIState.modals.movePicker) {
       UIState.modals.movePicker = false;
       closeModal("movePickerModalOverlay");
@@ -299,7 +442,7 @@ function escToCloseHandler(e) {
       closeModal("moveProgressModalOverlay");
     } else if (UIState.modals.info) {
       UIState.modals.info = false;
-      closeModal("infoModalOverlay");
+      closeInfoPanel();
     }
   }
 }
@@ -373,7 +516,7 @@ function validateConnectForm(showErrors = false) {
   }
 
   // Bucket format: show if invalid AND (user typed something) OR (on submit)
-  const bucketValid = /^[a-z0-9.-]{3,63}$/.test(bucket);
+  const bucketValid = isValidBucketName(bucket);
   if (!bucketValid) {
     ok = false;
     const should = showErrors || !!bucket;
@@ -385,6 +528,10 @@ function validateConnectForm(showErrors = false) {
   el("connectBtn").disabled = !ok;
 
   return { accessKeyId, secretAccessKey, region, bucket, ok };
+}
+
+function isValidBucketName(bucket) {
+  return /^[a-z0-9.-]{3,63}$/.test(bucket);
 }
 
 function renderBreadcrumbs() {
@@ -517,6 +664,7 @@ function renderParentRow() {
   row.className = "list-row";
   row.setAttribute("role", "row");
   row.dataset.parentRow = "true";
+  row.dataset.entryType = "parent";
 
   const c0 = document.createElement("div");
   c0.setAttribute("role", "cell");
@@ -525,8 +673,7 @@ function renderParentRow() {
   const c1 = document.createElement("div");
   c1.setAttribute("role", "cell");
   c1.className = "name-cell";
-  const icon = document.createElement("span");
-  icon.className = "folder-icon";
+  const icon = createFolderIcon();
   const link = document.createElement("a");
   link.href = "#";
   link.textContent = "..";
@@ -544,25 +691,16 @@ function renderParentRow() {
 
   const c2 = document.createElement("div");
   c2.setAttribute("role", "cell");
-  c2.style.textAlign = "center";
-  const badge = document.createElement("span");
-  badge.className = "type-badge";
-  badge.textContent = "folder";
-  c2.appendChild(badge);
-
+  c2.style.textAlign = "left";
+  c2.textContent = "";
   const c3 = document.createElement("div");
   c3.setAttribute("role", "cell");
-  c3.style.textAlign = "left";
-  c3.textContent = "-";
-  const c4 = document.createElement("div");
-  c4.setAttribute("role", "cell");
-  c4.textContent = "-";
+  c3.textContent = "";
 
   row.appendChild(c0);
   row.appendChild(c1);
   row.appendChild(c2);
   row.appendChild(c3);
-  row.appendChild(c4);
   return row;
 }
 
@@ -570,6 +708,8 @@ function renderPrefixRow(p) {
   const row = document.createElement("div");
   row.className = "list-row";
   row.setAttribute("role", "row");
+  row.dataset.entryType = "folder";
+  row.dataset.fullPath = p.prefix;
   const c0 = document.createElement("div");
   c0.setAttribute("role", "cell");
   const checkbox = document.createElement("input");
@@ -584,11 +724,10 @@ function renderPrefixRow(p) {
   const c1 = document.createElement("div");
   c1.setAttribute("role", "cell");
   c1.className = "name-cell";
-  const icon = document.createElement("span");
-  icon.className = "folder-icon";
+  const icon = createFolderIcon();
   const link = document.createElement("a");
   link.href = "#";
-  link.textContent = p.prefix.substring(NavigationState.currentPrefix.length) || p.prefix;
+  link.textContent = formatPrefixLabel(p.prefix, NavigationState.currentPrefix);
   link.addEventListener("click", (e) => {
     e.preventDefault();
     navigateToPrefix(p.prefix);
@@ -598,25 +737,16 @@ function renderPrefixRow(p) {
 
   const c2 = document.createElement("div");
   c2.setAttribute("role", "cell");
-  c2.style.textAlign = "center";
-  const badge = document.createElement("span");
-  badge.className = "type-badge";
-  badge.textContent = "folder";
-  c2.appendChild(badge);
-
+  c2.style.textAlign = "left";
+  c2.textContent = "";
   const c3 = document.createElement("div");
   c3.setAttribute("role", "cell");
-  c3.style.textAlign = "left";
-  c3.textContent = "-";
-  const c4 = document.createElement("div");
-  c4.setAttribute("role", "cell");
-  c4.textContent = "-";
+  c3.textContent = "";
 
   row.appendChild(c0);
   row.appendChild(c1);
   row.appendChild(c2);
   row.appendChild(c3);
-  row.appendChild(c4);
   return row;
 }
 
@@ -624,6 +754,8 @@ function renderObjectRow(o) {
   const row = document.createElement("div");
   row.className = "list-row";
   row.setAttribute("role", "row");
+  row.dataset.entryType = "object";
+  row.dataset.fullPath = o.key;
   const c0 = document.createElement("div");
   c0.setAttribute("role", "cell");
   const checkbox = document.createElement("input");
@@ -649,25 +781,16 @@ function renderObjectRow(o) {
 
   const c2 = document.createElement("div");
   c2.setAttribute("role", "cell");
-  c2.style.textAlign = "center";
-  const badge = document.createElement("span");
-  badge.className = "type-badge";
-  badge.textContent = "object";
-  c2.appendChild(badge);
-
+  c2.style.textAlign = "left";
+  c2.textContent = formatBytes(o.size);
   const c3 = document.createElement("div");
   c3.setAttribute("role", "cell");
-  c3.style.textAlign = "left";
-  c3.textContent = formatBytes(o.size);
-  const c4 = document.createElement("div");
-  c4.setAttribute("role", "cell");
-  c4.textContent = o.lastModified || "";
+  c3.textContent = o.lastModified || "";
 
   row.appendChild(c0);
   row.appendChild(c1);
   row.appendChild(c2);
   row.appendChild(c3);
-  row.appendChild(c4);
   return row;
 }
 
@@ -675,6 +798,7 @@ function renderObjectRow(o) {
 function computeRowFullPath(row) {
   try {
     if (row?.dataset?.parentRow === "true") return null;
+    if (row?.dataset?.fullPath) return row.dataset.fullPath;
     const nameCell = row.children[1];
     const link = nameCell?.querySelector("a");
     if (!link) return null;
@@ -707,8 +831,7 @@ function updateSelectionUI() {
   for (const row of rowsAll) {
     const cb = row.querySelector("input[type='checkbox']");
     if (!cb) continue;
-    const typeCell = row.children[2];
-    const isFolder = (typeCell.querySelector(".type-badge")?.textContent || "") === "folder";
+    const isFolder = row.dataset.entryType === "folder";
     const fullPath = computeRowFullPath(row);
     const shouldBeChecked =
       !!fullPath &&
@@ -799,8 +922,7 @@ async function connect() {
 
     el("connBucket").textContent = bucket;
     el("connRegion").textContent = region;
-    const signOutBtn = el("signOutBtn");
-    if (signOutBtn) signOutBtn.hidden = false;
+    setAccountMenuVisible(true);
 
     navigateToPrefix("");
     showToast(
@@ -843,6 +965,8 @@ function openUploadModal() {
 function closeUploadModal() {
   UIState.modals.upload = false;
   closeModal("uploadModalOverlay");
+  const folderPicker = el("folderPicker");
+  if (folderPicker) folderPicker.value = "";
 }
 
 function renderUploadList() {
@@ -850,14 +974,15 @@ function renderUploadList() {
   cont.innerHTML = "";
   for (const [id, op] of OperationRegistry.uploads.entries()) {
     const item = document.createElement("div");
-    item.className = "card";
+    item.className = "card upload-item";
+    if (op.fadeOut) item.classList.add("upload-item--fade");
     item.innerHTML = `
-      <div style="display:flex;align-items:center;justify-content:space-between;">
-        <div>
+      <div class="upload-item__row">
+        <div class="upload-item__meta">
           <strong>${escapeHTML(op.fileName)}</strong>
           <div class="helper">Key: ${escapeHTML(op.key)}</div>
         </div>
-        <div>
+        <div class="upload-item__actions">
           <button class="btn btn-ghost" data-id="${id}" data-action="abort">Cancel</button>
         </div>
       </div>
@@ -883,8 +1008,11 @@ function renderUploadList() {
   });
 }
 
-function addUpload(file) {
-  const key = NavigationState.currentPrefix + file.name;
+function addUpload(file, keyOverride, options = {}) {
+  const key = keyOverride || NavigationState.currentPrefix + file.name;
+  const displayName = keyOverride
+    ? keyOverride.replace(NavigationState.currentPrefix, "")
+    : file.name;
   const exists = ListingState.objects.some((o) => o.key === key);
   // eslint-disable-next-line no-alert
   const proceed = exists ? confirm(`Overwrite existing object?\n${key}`) : true;
@@ -892,11 +1020,15 @@ function addUpload(file) {
 
   const id = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
   const entry = {
-    fileName: file.name,
+    fileName: displayName,
     key,
     totalBytes: file.size,
     uploadedBytes: 0,
     status: "queued",
+    notifyOnComplete: options.notifyOnComplete !== false,
+    fadeOut: false,
+    dismissTimer: null,
+    fadeTimer: null,
     parts: [],
     abortController: null,
     uploadId: null,
@@ -918,11 +1050,19 @@ function addUpload(file) {
     mu.promise()
       .then(() => {
         entry.status = "completed";
-        showToast("Upload Complete", `${escapeHTML(file.name)} uploaded.`);
-        // cleanup and refresh listing
-        OperationRegistry.uploads.delete(id);
-        renderUploadList();
+        if (entry.notifyOnComplete) {
+          showToast("Upload Complete", `${escapeHTML(entry.fileName)} uploaded.`);
+        }
         refreshListingNonBlocking();
+        entry.fadeTimer = setTimeout(() => {
+          entry.fadeOut = true;
+          renderUploadList();
+        }, 8000);
+        entry.dismissTimer = setTimeout(() => {
+          OperationRegistry.uploads.delete(id);
+          renderUploadList();
+        }, 10000);
+        renderUploadList();
       })
       .catch((err) => {
         entry.status = "failed";
@@ -948,10 +1088,19 @@ function addUpload(file) {
     mu.promise()
       .then(() => {
         entry.status = "completed";
-        showToast("Upload Complete", `${escapeHTML(file.name)} uploaded.`);
-        OperationRegistry.uploads.delete(id);
-        renderUploadList();
+        if (entry.notifyOnComplete) {
+          showToast("Upload Complete", `${escapeHTML(entry.fileName)} uploaded.`);
+        }
         refreshListingNonBlocking();
+        entry.fadeTimer = setTimeout(() => {
+          entry.fadeOut = true;
+          renderUploadList();
+        }, 8000);
+        entry.dismissTimer = setTimeout(() => {
+          OperationRegistry.uploads.delete(id);
+          renderUploadList();
+        }, 10000);
+        renderUploadList();
       })
       .catch((err) => {
         entry.status = "failed";
@@ -966,6 +1115,84 @@ function addUpload(file) {
 
 function refreshListingNonBlocking() {
   listPrefix(NavigationState.currentPrefix, null, true);
+}
+
+function confirmLargeUpload(count) {
+  if (count <= 100) return Promise.resolve(true);
+  return new Promise((resolve) => {
+    const proceedBtn = el("folderConfirmProceedBtn");
+    const cancelBtn = el("folderConfirmCancelBtn");
+    const closeBtn = el("closeFolderConfirmModalBtn");
+    openFolderConfirmModal(count);
+    const cleanup = (result) => {
+      if (proceedBtn) proceedBtn.onclick = null;
+      if (cancelBtn) cancelBtn.onclick = null;
+      if (closeBtn) closeBtn.onclick = null;
+      resolve(result);
+    };
+    if (proceedBtn)
+      proceedBtn.onclick = () => {
+        closeFolderConfirmModal();
+        cleanup(true);
+      };
+    if (cancelBtn)
+      cancelBtn.onclick = () => {
+        closeFolderConfirmModal();
+        cleanup(false);
+      };
+    if (closeBtn)
+      closeBtn.onclick = () => {
+        closeFolderConfirmModal();
+        cleanup(false);
+      };
+  });
+}
+
+async function enqueueFolderFiles(files) {
+  if (!files || files.length === 0) return;
+  if (!(await confirmLargeUpload(files.length))) return;
+  files.forEach((file) => {
+    const rel = file.webkitRelativePath || file.name;
+    const key = NavigationState.currentPrefix + rel;
+    addUpload(file, key, { notifyOnComplete: false });
+  });
+  showToast("Upload Queued", `${files.length} files queued.`);
+}
+
+function traverseEntry(entry, basePath = "") {
+  return new Promise((resolve) => {
+    if (!entry) return resolve([]);
+    if (entry.isFile) {
+      entry.file((file) => {
+        const relPath = basePath + file.name;
+        const wrapped = new File([file], file.name, { type: file.type });
+        wrapped.webkitRelativePath = relPath;
+        resolve([wrapped]);
+      });
+    } else if (entry.isDirectory) {
+      const reader = entry.createReader();
+      const readEntries = () =>
+        new Promise((res) => {
+          reader.readEntries((entries) => res(entries || []));
+        });
+      (async () => {
+        const files = [];
+        let entries = await readEntries();
+        while (entries.length) {
+          // eslint-disable-next-line no-await-in-loop
+          const nested = await Promise.all(
+            entries.map((ent) => traverseEntry(ent, basePath + entry.name + "/"))
+          );
+          nested.forEach((arr) => files.push(...arr));
+          // eslint-disable-next-line no-await-in-loop
+          entries = await readEntries();
+        }
+        resolve(files);
+      })();
+    } else {
+      resolve([]);
+    }
+  });
 }
 
 // Preview and Download
@@ -1425,7 +1652,7 @@ async function renderMovePicker() {
   const tableHeader = document.createElement("div");
   tableHeader.className = "list-header";
   tableHeader.setAttribute("role", "row");
-  tableHeader.innerHTML = `<div role="columnheader"></div><div role="columnheader">Name</div><div role="columnheader" style="text-align:center">Type</div><div role="columnheader" style="text-align:left">-</div><div role="columnheader">-</div>`;
+  tableHeader.innerHTML = `<div role="columnheader"></div><div role="columnheader">Name</div><div role="columnheader" style="text-align:left">-</div><div role="columnheader">-</div>`;
   listCont.appendChild(tableHeader);
 
   const rowsGroup = document.createElement("div");
@@ -1445,8 +1672,7 @@ async function renderMovePicker() {
     const c1 = document.createElement("div");
     c1.setAttribute("role", "cell");
     c1.className = "name-cell";
-    const icon = document.createElement("span");
-    icon.className = "folder-icon";
+    const icon = createFolderIcon();
     const link = document.createElement("a");
     link.href = "#";
     link.textContent = "..";
@@ -1463,24 +1689,16 @@ async function renderMovePicker() {
     c1.appendChild(link);
     const c2 = document.createElement("div");
     c2.setAttribute("role", "cell");
-    c2.style.textAlign = "center";
-    const badge = document.createElement("span");
-    badge.className = "type-badge";
-    badge.textContent = "folder";
-    c2.appendChild(badge);
+    c2.style.textAlign = "left";
+    c2.textContent = "";
     const c3 = document.createElement("div");
     c3.setAttribute("role", "cell");
-    c3.style.textAlign = "left";
-    c3.textContent = "-";
-    const c4 = document.createElement("div");
-    c4.setAttribute("role", "cell");
-    c4.textContent = "-";
+    c3.textContent = "";
 
     row.appendChild(c0);
     row.appendChild(c1);
     row.appendChild(c2);
     row.appendChild(c3);
-    row.appendChild(c4);
     rowsGroup.appendChild(row);
   }
 
@@ -1501,11 +1719,10 @@ async function renderMovePicker() {
       const c1 = document.createElement("div");
       c1.setAttribute("role", "cell");
       c1.className = "name-cell";
-      const icon = document.createElement("span");
-      icon.className = "folder-icon";
+      const icon = createFolderIcon();
       const link = document.createElement("a");
       link.href = "#";
-      link.textContent = p.substring((MoveState.pickerPrefix || "").length) || p;
+      link.textContent = formatPrefixLabel(p, MoveState.pickerPrefix || "");
       link.addEventListener("click", (e) => {
         e.preventDefault();
         MoveState.pickerPrefix = p;
@@ -1516,25 +1733,16 @@ async function renderMovePicker() {
 
       const c2 = document.createElement("div");
       c2.setAttribute("role", "cell");
-      c2.style.textAlign = "center";
-      const badge = document.createElement("span");
-      badge.className = "type-badge";
-      badge.textContent = "folder";
-      c2.appendChild(badge);
-
+      c2.style.textAlign = "left";
+      c2.textContent = "";
       const c3 = document.createElement("div");
       c3.setAttribute("role", "cell");
-      c3.style.textAlign = "left";
-      c3.textContent = "-";
-      const c4 = document.createElement("div");
-      c4.setAttribute("role", "cell");
-      c4.textContent = "-";
+      c3.textContent = "";
 
       row.appendChild(c0);
       row.appendChild(c1);
       row.appendChild(c2);
       row.appendChild(c3);
-      row.appendChild(c4);
       rowsGroup.appendChild(row);
     });
     // Destination is the current pickerPrefix
@@ -1963,8 +2171,7 @@ function signOut() {
   el("app").hidden = true;
   const infoFabEl = el("infoFab");
   if (infoFabEl) infoFabEl.hidden = false;
-  const signOutBtn = el("signOutBtn");
-  if (signOutBtn) signOutBtn.hidden = true;
+  setAccountMenuVisible(false);
   el("accessKeyId").value = "";
   el("secretAccessKey").value = "";
   el("region").value = "";
@@ -1987,13 +2194,95 @@ function bindEvents() {
     navigateToPrefix("");
   });
 
-  el("signOutBtn").addEventListener("click", signOut);
+  const signOutBtn = el("signOutBtn");
+  if (signOutBtn) signOutBtn.addEventListener("click", signOut);
+
+  const mobileMenuBtn = el("mobileMenuBtn");
+  if (mobileMenuBtn) {
+    mobileMenuBtn.addEventListener("click", () => {
+      openMobileMenu();
+    });
+  }
+  const mobileMenuOverlay = el("mobileMenuOverlay");
+  if (mobileMenuOverlay) {
+    mobileMenuOverlay.addEventListener("click", (e) => {
+      if (e.target === mobileMenuOverlay) closeMobileMenu();
+    });
+  }
+  const closeMobileMenuBtn = el("closeMobileMenuBtn");
+  if (closeMobileMenuBtn) {
+    closeMobileMenuBtn.addEventListener("click", () => closeMobileMenu());
+  }
+  const mobileChangeBucketBtn = el("mobileChangeBucketBtn");
+  if (mobileChangeBucketBtn) {
+    mobileChangeBucketBtn.addEventListener("click", () => {
+      closeMobileMenu();
+      openChangeBucketModal();
+    });
+  }
+  const mobileSignOutBtn = el("mobileSignOutBtn");
+  if (mobileSignOutBtn) {
+    mobileSignOutBtn.addEventListener("click", () => {
+      closeMobileMenu();
+      signOut();
+    });
+  }
+
+  const closeChangeBucketModalBtn = el("closeChangeBucketModalBtn");
+  if (closeChangeBucketModalBtn) {
+    closeChangeBucketModalBtn.addEventListener("click", () => {
+      UIState.modals.changeBucket = false;
+      closeModal("changeBucketModalOverlay");
+    });
+  }
+  const changeBucketCancelBtn = el("changeBucketCancelBtn");
+  if (changeBucketCancelBtn) {
+    changeBucketCancelBtn.addEventListener("click", () => {
+      UIState.modals.changeBucket = false;
+      closeModal("changeBucketModalOverlay");
+    });
+  }
+  const changeBucketSaveBtn = el("changeBucketSaveBtn");
+  if (changeBucketSaveBtn) {
+    changeBucketSaveBtn.addEventListener("click", () => changeBucketFlow());
+  }
+  const changeBucketInput = el("changeBucketInput");
+  if (changeBucketInput) {
+    changeBucketInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        changeBucketFlow();
+      }
+    });
+  }
+
+  const folderConfirmCancelBtn = el("folderConfirmCancelBtn");
+  if (folderConfirmCancelBtn) {
+    folderConfirmCancelBtn.addEventListener("click", () => closeFolderConfirmModal());
+  }
+  const folderConfirmCloseBtn = el("closeFolderConfirmModalBtn");
+  if (folderConfirmCloseBtn) {
+    folderConfirmCloseBtn.addEventListener("click", () => closeFolderConfirmModal());
+  }
+  const folderConfirmProceedBtn = el("folderConfirmProceedBtn");
+  if (folderConfirmProceedBtn) {
+    folderConfirmProceedBtn.addEventListener("click", () => closeFolderConfirmModal());
+  }
 
   el("uploadBtn").addEventListener("click", openUploadModal);
   el("openFilePickerBtn").addEventListener("click", () => el("filePicker").click());
+  el("openFolderPickerBtn").addEventListener("click", () => el("folderPicker").click());
   el("filePicker").addEventListener("change", (e) => {
     const files = Array.from(e.target.files || []);
-    files.forEach(addUpload);
+    const notifyOnComplete = files.length <= 1;
+    files.forEach((file) => addUpload(file, null, { notifyOnComplete }));
+    if (files.length > 1) {
+      showToast("Upload Queued", `${files.length} files queued.`);
+    }
+  });
+  el("folderPicker").addEventListener("change", (e) => {
+    const files = Array.from(e.target.files || []);
+    enqueueFolderFiles(files);
   });
 
   const dropzone = el("dropzone");
@@ -2011,8 +2300,27 @@ function bindEvents() {
     })
   );
   dropzone.addEventListener("drop", (e) => {
+    const items = Array.from(e.dataTransfer.items || []);
+    const entries = items
+      .map((item) => (item.webkitGetAsEntry ? item.webkitGetAsEntry() : null))
+      .filter(Boolean);
+    if (entries.length > 0) {
+      Promise.all(entries.map((entry) => traverseEntry(entry))).then(async (nested) => {
+        const files = nested.flat();
+        if (files.length) await enqueueFolderFiles(files);
+        else {
+          const fallback = Array.from(e.dataTransfer.files || []);
+          fallback.forEach(addUpload);
+        }
+      });
+      return;
+    }
     const files = Array.from(e.dataTransfer.files || []);
-    files.forEach(addUpload);
+    const notifyOnComplete = files.length <= 1;
+    files.forEach((file) => addUpload(file, null, { notifyOnComplete }));
+    if (files.length > 1) {
+      showToast("Upload Queued", `${files.length} files queued.`);
+    }
   });
 
   el("closeUploadModalBtn").addEventListener("click", closeUploadModal);
@@ -2088,12 +2396,9 @@ function bindEvents() {
       // Reflect header toggle in per-row checkbox
       checkbox.checked = selectAll;
 
-      // Determine full path from row content (link text is relative; includes trailing slash for folders)
-      const nameCell = row.children[1];
-      const typeCell = row.children[2];
-      const isFolder = (typeCell.querySelector(".type-badge")?.textContent || "") === "folder";
-      const keyOrPrefix = nameCell.querySelector("a")?.textContent || "";
-      const fullPath = NavigationState.currentPrefix + keyOrPrefix;
+      const isFolder = row.dataset.entryType === "folder";
+      const fullPath = computeRowFullPath(row);
+      if (!fullPath) continue;
 
       if (selectAll) {
         if (isFolder) SelectionState.selectedPrefixes.add(fullPath);
@@ -2111,22 +2416,21 @@ function bindEvents() {
   if (infoFabEl) {
     infoFabEl.hidden = false;
     infoFabEl.addEventListener("click", () => {
-      UIState.modals.info = true;
-      openModal("infoModalOverlay", "infoModal");
+      openInfoPanel();
     });
   }
   const closeInfoBtn = el("closeInfoModalBtn");
   if (closeInfoBtn) {
     closeInfoBtn.addEventListener("click", () => {
       UIState.modals.info = false;
-      closeModal("infoModalOverlay");
+      closeInfoPanel();
     });
   }
   const infoCloseBtnFooter = el("infoCloseBtn");
   if (infoCloseBtnFooter) {
     infoCloseBtnFooter.addEventListener("click", () => {
       UIState.modals.info = false;
-      closeModal("infoModalOverlay");
+      closeInfoPanel();
     });
   }
   const copyIamBtn = el("copyIamPolicyBtn");
