@@ -350,6 +350,14 @@ select:disabled {
 }
 .crumb-icon {
   display: inline-flex;
+  --crumb-primary: #ffffff;
+  --crumb-secondary: #9ca3af;
+}
+.crumb-icon .crumb-primary {
+  fill: var(--crumb-primary);
+}
+.crumb-icon .crumb-secondary {
+  fill: var(--crumb-secondary);
 }
 
 /* Connection indicator (clean, inline) */
